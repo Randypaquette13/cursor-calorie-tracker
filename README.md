@@ -14,26 +14,10 @@ A React Native (Expo Go) calorie tracker that stores all data locally on your ph
 - [Expo Go](https://expo.dev/go) on your iPhone or Android device
 - A **Cursor API key** from [cursor.com/dashboard/api](https://cursor.com/dashboard/api) (for natural-language parsing only)
 
-## Push to GitHub
-
-This project is ready locally on branch `cursor/calorie-tracker-expo-8262`. To publish:
-
-```bash
-gh auth login
-gh repo create cursor-calorie-tracker --public --source=. --remote=origin --push
-```
-
-Or create a repo on GitHub manually, then:
-
-```bash
-git remote add origin https://github.com/YOUR_USERNAME/cursor-calorie-tracker.git
-git push -u origin cursor/calorie-tracker-expo-8262
-```
-
 ## Quick start
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/Randypaquette13/cursor-calorie-tracker.git
 cd cursor-calorie-tracker
 npm install
 npm start
