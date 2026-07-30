@@ -44,10 +44,7 @@
         {
           "cameraPermission": "Allow Cursor Calorie Tracker to scan barcodes for nutrition lookup."
         }
-      ],
-      "expo-font",
-      "expo-status-bar",
-      "expo-web-browser"
+      ]
     ],
     "experiments": {
       "typedRoutes": true
