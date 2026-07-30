@@ -1,11 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
-import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet } from 'react-native';
+import { isSpeechRecognitionAvailable } from '@/utils/speechRecognitionAvailable';
 
 interface SpeechMicButtonProps {
   disabled?: boolean;
@@ -14,132 +7,11 @@ interface SpeechMicButtonProps {
   onListeningChange?: (listening: boolean) => void;
 }
 
-export function SpeechMicButton({
-  disabled,
-  text,
-  onChangeText,
-  onListeningChange,
-}: SpeechMicButtonProps) {
-  const [listening, setListening] = useState(false);
-  const [starting, setStarting] = useState(false);
-  const baseTextRef = useRef('');
+export function SpeechMicButton(props: SpeechMicButtonProps) {
+  if (!isSpeechRecognitionAvailable()) {
+    return null;
+  }
 
-  const setListeningState = useCallback(
-    (next: boolean) => {
-      setListening(next);
-      onListeningChange?.(next);
-    },
-    [onListeningChange],
-  );
-
-  useSpeechRecognitionEvent('start', () => setListeningState(true));
-  useSpeechRecognitionEvent('end', () => {
-    setListeningState(false);
-    setStarting(false);
-  });
-  useSpeechRecognitionEvent('result', (event) => {
-    const transcript = event.results[0]?.transcript?.trim();
-    if (!transcript) return;
-
-    const prefix = baseTextRef.current.trim();
-    onChangeText(prefix ? `${prefix} ${transcript}` : transcript);
-
-    if (event.isFinal) {
-      baseTextRef.current = prefix ? `${prefix} ${transcript}` : transcript;
-    }
-  });
-  useSpeechRecognitionEvent('error', (event) => {
-    setListeningState(false);
-    setStarting(false);
-    if (event.error !== 'aborted' && event.error !== 'no-speech') {
-      Alert.alert('Speech recognition error', event.message || event.error);
-    }
-  });
-
-  const toggleListening = useCallback(async () => {
-    if (disabled || starting) return;
-
-    if (Constants.executionEnvironment === 'storeClient') {
-      Alert.alert(
-        'Install the Calorie Tracker app',
-        'The microphone needs the Cursor Calorie Tracker dev app, not Expo Go. Build it once with EAS, install on your iPhone, then connect to the same exp:// Railway URL.',
-      );
-      return;
-    }
-
-    if (listening) {
-      ExpoSpeechRecognitionModule.stop();
-      return;
-    }
-
-    setStarting(true);
-    baseTextRef.current = text;
-
-    try {
-      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert(
-          'Microphone permission needed',
-          'Allow microphone and speech recognition to log food by voice.',
-        );
-        return;
-      }
-
-      ExpoSpeechRecognitionModule.start({
-        lang: 'en-US',
-        interimResults: true,
-        continuous: true,
-        requiresOnDeviceRecognition: true,
-      });
-    } catch (error) {
-      Alert.alert(
-        'Speech recognition unavailable',
-        error instanceof Error ? error.message : 'Could not start speech recognition.',
-      );
-    } finally {
-      setStarting(false);
-    }
-  }, [disabled, listening, starting, text]);
-
-  return (
-    <Pressable
-      style={[
-        styles.button,
-        listening && styles.buttonActive,
-        (disabled || starting) && styles.buttonDisabled,
-      ]}
-      onPress={toggleListening}
-      disabled={disabled || starting}
-      accessibilityLabel={listening ? 'Stop listening' : 'Start voice input'}>
-      {starting ? (
-        <ActivityIndicator color={listening ? '#FFFFFF' : '#059669'} size="small" />
-      ) : (
-        <Ionicons
-          name={listening ? 'stop' : 'mic'}
-          size={22}
-          color={listening ? '#FFFFFF' : '#059669'}
-        />
-      )}
-    </Pressable>
-  );
+  const { SpeechMicButtonImpl } = require('./SpeechMicButtonImpl') as typeof import('./SpeechMicButtonImpl');
+  return <SpeechMicButtonImpl {...props} />;
 }
-
-const styles = StyleSheet.create({
-  button: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#059669',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  buttonActive: {
-    backgroundColor: '#DC2626',
-    borderColor: '#DC2626',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-});

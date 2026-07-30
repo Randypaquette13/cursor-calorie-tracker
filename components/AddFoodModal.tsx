@@ -10,6 +10,7 @@ import {
 
 import { SpeechMicButton } from '@/components/SpeechMicButton';
 import { Text } from '@/components/Themed';
+import { isSpeechRecognitionAvailable } from '@/utils/speechRecognitionAvailable';
 
 interface AddFoodModalProps {
   visible: boolean;
@@ -21,6 +22,7 @@ interface AddFoodModalProps {
 export function AddFoodModal({ visible, loading, onClose, onSubmit }: AddFoodModalProps) {
   const [text, setText] = useState('');
   const [listening, setListening] = useState(false);
+  const speechAvailable = isSpeechRecognitionAvailable();
 
   const handleSubmit = async () => {
     const trimmed = text.trim();
@@ -36,9 +38,11 @@ export function AddFoodModal({ visible, loading, onClose, onSubmit }: AddFoodMod
         <View style={styles.sheet}>
           <Text style={styles.title}>Log food</Text>
           <Text style={styles.subtitle}>
-            {listening
+            {speechAvailable && listening
               ? 'Listening… tap the red stop button when you are done speaking.'
-              : 'Describe what you ate, or tap the mic and speak. Cursor will estimate calories and macros.'}
+              : speechAvailable
+                ? 'Describe what you ate, or tap the mic and speak. Cursor will estimate calories and macros.'
+                : 'Describe what you ate in the text box. Cursor will estimate calories and macros.'}
           </Text>
           <View style={styles.inputRow}>
             <TextInput
@@ -50,12 +54,14 @@ export function AddFoodModal({ visible, loading, onClose, onSubmit }: AddFoodMod
               multiline
               editable={!loading && !listening}
             />
-            <SpeechMicButton
-              disabled={loading}
-              text={text}
-              onChangeText={setText}
-              onListeningChange={setListening}
-            />
+            {speechAvailable ? (
+              <SpeechMicButton
+                disabled={loading}
+                text={text}
+                onChangeText={setText}
+                onListeningChange={setListening}
+              />
+            ) : null}
           </View>
           <View style={styles.actions}>
             <Pressable style={styles.secondaryButton} onPress={onClose} disabled={loading}>
