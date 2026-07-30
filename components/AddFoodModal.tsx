@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -20,14 +20,7 @@ interface AddFoodModalProps {
 
 export function AddFoodModal({ visible, loading, onClose, onSubmit }: AddFoodModalProps) {
   const [text, setText] = useState('');
-  const inputRef = useRef<TextInput>(null);
-
-  const appendTranscript = (transcript: string) => {
-    setText((current) => {
-      const trimmed = current.trim();
-      return trimmed ? `${trimmed} ${transcript}` : transcript;
-    });
-  };
+  const [listening, setListening] = useState(false);
 
   const handleSubmit = async () => {
     const trimmed = text.trim();
@@ -43,24 +36,25 @@ export function AddFoodModal({ visible, loading, onClose, onSubmit }: AddFoodMod
         <View style={styles.sheet}>
           <Text style={styles.title}>Log food</Text>
           <Text style={styles.subtitle}>
-            Describe what you ate in plain language, or tap the mic to speak. Cursor will estimate
-            calories and macros.
+            {listening
+              ? 'Listening… tap the red stop button when you are done speaking.'
+              : 'Describe what you ate, or tap the mic and speak. Cursor will estimate calories and macros.'}
           </Text>
           <View style={styles.inputRow}>
             <TextInput
-              ref={inputRef}
               style={styles.input}
               placeholder='e.g. "2 eggs, toast with butter, and black coffee for breakfast"'
               placeholderTextColor="#9CA3AF"
               value={text}
               onChangeText={setText}
               multiline
-              editable={!loading}
+              editable={!loading && !listening}
             />
             <SpeechMicButton
               disabled={loading}
-              onTranscript={appendTranscript}
-              onFocusInput={() => inputRef.current?.focus()}
+              text={text}
+              onChangeText={setText}
+              onListeningChange={setListening}
             />
           </View>
           <View style={styles.actions}>

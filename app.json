@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.randypaquette13.cursorcalorietracker",
       "infoPlist": {
         "NSCameraUsageDescription": "Camera access is used to scan product barcodes for nutrition lookup.",
         "NSMicrophoneUsageDescription": "Microphone access is used for voice food logging.",
@@ -16,6 +17,7 @@
       }
     },
     "android": {
+      "package": "com.randypaquette13.cursorcalorietracker",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -29,6 +31,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "expo-dev-client",
       "expo-router",
       [
         "expo-splash-screen",
