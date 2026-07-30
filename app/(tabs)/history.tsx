@@ -8,16 +8,23 @@ import { Text } from '@/components/Themed';
 import { useFood } from '@/context/FoodContext';
 
 export default function HistoryScreen() {
-  const { history, selectedDate, setSelectedDate, entries, summary, today, removeEntry } =
-    useFood();
+  const {
+    history,
+    historySelectedDate,
+    setHistorySelectedDate,
+    historyEntries,
+    historySummary,
+    today,
+    removeEntry,
+  } = useFood();
 
   const selectedLabel = useMemo(() => {
     try {
-      return format(parseISO(selectedDate), 'EEEE, MMM d, yyyy');
+      return format(parseISO(historySelectedDate), 'EEEE, MMM d, yyyy');
     } catch {
-      return selectedDate;
+      return historySelectedDate;
     }
-  }, [selectedDate]);
+  }, [historySelectedDate]);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -31,12 +38,12 @@ export default function HistoryScreen() {
           </View>
         ) : (
           history.map((day) => {
-            const selected = day.date === selectedDate;
+            const selected = day.date === historySelectedDate;
             return (
               <Pressable
                 key={day.date}
                 style={[styles.historyItem, selected && styles.historyItemSelected]}
-                onPress={() => setSelectedDate(day.date)}>
+                onPress={() => setHistorySelectedDate(day.date)}>
                 <View>
                   <Text style={styles.historyDate}>
                     {day.date === today ? 'Today' : day.date}
@@ -54,8 +61,8 @@ export default function HistoryScreen() {
       </View>
 
       <Text style={styles.detailTitle}>{selectedLabel}</Text>
-      <DailySummaryCard summary={summary} title="Day summary" />
-      <FoodEntryList entries={entries} onDelete={removeEntry} />
+      <DailySummaryCard summary={historySummary} title="Day summary" />
+      <FoodEntryList entries={historyEntries} onDelete={removeEntry} />
     </ScrollView>
   );
 }

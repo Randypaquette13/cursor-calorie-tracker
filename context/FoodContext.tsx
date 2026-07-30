@@ -13,11 +13,13 @@ import type { DailySummary, FoodEntry, FoodSource, MealType } from '@/types/food
 
 interface FoodContextValue {
   ready: boolean;
-  selectedDate: string;
-  setSelectedDate: (date: string) => void;
   today: string;
-  entries: FoodEntry[];
-  summary: DailySummary;
+  todayEntries: FoodEntry[];
+  todaySummary: DailySummary;
+  historySelectedDate: string;
+  setHistorySelectedDate: (date: string) => void;
+  historyEntries: FoodEntry[];
+  historySummary: DailySummary;
   history: DailySummary[];
   refresh: () => Promise<void>;
   addEntry: (entry: {
@@ -30,7 +32,6 @@ interface FoodContextValue {
     source: FoodSource;
     rawInput?: string | null;
     barcode?: string | null;
-    date?: string;
   }) => Promise<void>;
   removeEntry: (id: number) => Promise<void>;
 }
@@ -40,9 +41,18 @@ const FoodContext = createContext<FoodContextValue | null>(null);
 export function FoodProvider({ children }: { children: React.ReactNode }) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [ready, setReady] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(today);
-  const [entries, setEntries] = useState<FoodEntry[]>([]);
-  const [summary, setSummary] = useState<DailySummary>({
+  const [historySelectedDate, setHistorySelectedDate] = useState(today);
+  const [todayEntries, setTodayEntries] = useState<FoodEntry[]>([]);
+  const [todaySummary, setTodaySummary] = useState<DailySummary>({
+    date: today,
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+    entryCount: 0,
+  });
+  const [historyEntries, setHistoryEntries] = useState<FoodEntry[]>([]);
+  const [historySummary, setHistorySummary] = useState<DailySummary>({
     date: today,
     calories: 0,
     protein: 0,
@@ -53,15 +63,26 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
   const [history, setHistory] = useState<DailySummary[]>([]);
 
   const refresh = useCallback(async () => {
-    const [dayEntries, daySummary, historySummaries] = await Promise.all([
-      getEntriesForDate(selectedDate),
-      getDailySummary(selectedDate),
+    const [
+      currentDayEntries,
+      currentDaySummary,
+      selectedDayEntries,
+      selectedDaySummary,
+      historySummaries,
+    ] = await Promise.all([
+      getEntriesForDate(today),
+      getDailySummary(today),
+      getEntriesForDate(historySelectedDate),
+      getDailySummary(historySelectedDate),
       getHistorySummaries(),
     ]);
-    setEntries(dayEntries);
-    setSummary(daySummary);
+
+    setTodayEntries(currentDayEntries);
+    setTodaySummary(currentDaySummary);
+    setHistoryEntries(selectedDayEntries);
+    setHistorySummary(selectedDaySummary);
     setHistory(historySummaries);
-  }, [selectedDate]);
+  }, [historySelectedDate, today]);
 
   useEffect(() => {
     (async () => {
@@ -86,15 +107,14 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
       source: FoodSource;
       rawInput?: string | null;
       barcode?: string | null;
-      date?: string;
     }) => {
       await insertFoodEntry({
         ...entry,
-        date: entry.date ?? selectedDate,
+        date: today,
       });
       await refresh();
     },
-    [refresh, selectedDate],
+    [refresh, today],
   );
 
   const removeEntry = useCallback(
@@ -108,17 +128,31 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(
     () => ({
       ready,
-      selectedDate,
-      setSelectedDate,
       today,
-      entries,
-      summary,
+      todayEntries,
+      todaySummary,
+      historySelectedDate,
+      setHistorySelectedDate,
+      historyEntries,
+      historySummary,
       history,
       refresh,
       addEntry,
       removeEntry,
     }),
-    [ready, selectedDate, today, entries, summary, history, refresh, addEntry, removeEntry],
+    [
+      ready,
+      today,
+      todayEntries,
+      todaySummary,
+      historySelectedDate,
+      historyEntries,
+      historySummary,
+      history,
+      refresh,
+      addEntry,
+      removeEntry,
+    ],
   );
 
   return <FoodContext.Provider value={value}>{children}</FoodContext.Provider>;

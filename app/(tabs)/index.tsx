@@ -12,7 +12,7 @@ import { inferMealType } from '@/utils/meal';
 import type { MealType } from '@/types/food';
 
 export default function TodayScreen() {
-  const { summary, entries, addEntry, removeEntry, selectedDate, today } = useFood();
+  const { todaySummary, todayEntries, addEntry, removeEntry } = useFood();
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -46,8 +46,8 @@ export default function TodayScreen() {
   return (
     <>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Text style={styles.heading}>{selectedDate === today ? 'Today' : selectedDate}</Text>
-        <DailySummaryCard summary={summary} />
+        <Text style={styles.heading}>Today</Text>
+        <DailySummaryCard summary={todaySummary} />
         <View style={styles.actions}>
           <Pressable style={styles.primaryAction} onPress={() => setModalVisible(true)}>
             <Text style={styles.primaryActionText}>Log with natural language</Text>
@@ -59,7 +59,7 @@ export default function TodayScreen() {
           </Link>
         </View>
         <Text style={styles.sectionTitle}>Meals</Text>
-        <FoodEntryList entries={entries} onDelete={removeEntry} />
+        <FoodEntryList entries={todayEntries} onDelete={removeEntry} />
         <Text style={styles.hint}>Long-press an entry to delete it.</Text>
       </ScrollView>
       <AddFoodModal
