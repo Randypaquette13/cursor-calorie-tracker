@@ -1,0 +1,40 @@
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'unknown';
+
+export type FoodSource = 'natural_language' | 'barcode';
+
+export interface FoodEntry {
+  id: number;
+  date: string;
+  mealType: MealType;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  source: FoodSource;
+  rawInput: string | null;
+  barcode: string | null;
+  createdAt: string;
+}
+
+export interface DailySummary {
+  date: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  entryCount: number;
+}
+
+export interface ParsedFoodItem {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  mealType?: MealType | null;
+}
+
+export interface ParsedFoodResponse {
+  items: ParsedFoodItem[];
+}
