@@ -15,7 +15,6 @@ export EXPO_PACKAGER_PROXY_URL="https://${RAILWAY_PUBLIC_DOMAIN}"
 unset CI
 
 echo "Metro proxy URL: ${EXPO_PACKAGER_PROXY_URL}"
-echo "Open your dev build app → Enter URL manually: exp://${RAILWAY_PUBLIC_DOMAIN}"
-echo "Or fetch manifest links: https://${RAILWAY_PUBLIC_DOMAIN}/_expo/open?platform=ios"
+echo "Open Expo Go on your iPhone → Enter URL: exp://${RAILWAY_PUBLIC_DOMAIN}"
 
-exec expo start --port "${PORT}" --host lan --dev-client
+exec expo start --port "${PORT}" --host lan -c

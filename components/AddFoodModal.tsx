@@ -8,9 +8,7 @@ import {
   View,
 } from 'react-native';
 
-import { SpeechMicButton } from '@/components/SpeechMicButton';
 import { Text } from '@/components/Themed';
-import { isSpeechRecognitionAvailable } from '@/utils/speechRecognitionAvailable';
 
 interface AddFoodModalProps {
   visible: boolean;
@@ -21,8 +19,6 @@ interface AddFoodModalProps {
 
 export function AddFoodModal({ visible, loading, onClose, onSubmit }: AddFoodModalProps) {
   const [text, setText] = useState('');
-  const [listening, setListening] = useState(false);
-  const speechAvailable = isSpeechRecognitionAvailable();
 
   const handleSubmit = async () => {
     const trimmed = text.trim();
@@ -38,31 +34,17 @@ export function AddFoodModal({ visible, loading, onClose, onSubmit }: AddFoodMod
         <View style={styles.sheet}>
           <Text style={styles.title}>Log food</Text>
           <Text style={styles.subtitle}>
-            {speechAvailable && listening
-              ? 'Listening… tap the red stop button when you are done speaking.'
-              : speechAvailable
-                ? 'Describe what you ate, or tap the mic and speak. Cursor will estimate calories and macros.'
-                : 'Describe what you ate in the text box. Cursor will estimate calories and macros.'}
+            Describe what you ate in the text box. Cursor will estimate calories and macros.
           </Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              placeholder='e.g. "2 eggs, toast with butter, and black coffee for breakfast"'
-              placeholderTextColor="#9CA3AF"
-              value={text}
-              onChangeText={setText}
-              multiline
-              editable={!loading && !listening}
-            />
-            {speechAvailable ? (
-              <SpeechMicButton
-                disabled={loading}
-                text={text}
-                onChangeText={setText}
-                onListeningChange={setListening}
-              />
-            ) : null}
-          </View>
+          <TextInput
+            style={styles.input}
+            placeholder='e.g. "2 eggs, toast with butter, and black coffee for breakfast"'
+            placeholderTextColor="#9CA3AF"
+            value={text}
+            onChangeText={setText}
+            multiline
+            editable={!loading}
+          />
           <View style={styles.actions}>
             <Pressable style={styles.secondaryButton} onPress={onClose} disabled={loading}>
               <Text style={styles.secondaryText}>Cancel</Text>
@@ -106,13 +88,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 20,
   },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 10,
-  },
   input: {
-    flex: 1,
     minHeight: 120,
     borderWidth: 1,
     borderColor: '#D1D5DB',

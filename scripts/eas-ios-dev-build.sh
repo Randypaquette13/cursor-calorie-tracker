@@ -9,6 +9,9 @@ fi
 
 cd "$(dirname "$0")/.."
 
+echo "→ Installing speech recognition native module for EAS build..."
+npx expo install expo-speech-recognition
+
 echo "→ Linking project to Expo (if needed)..."
 npx eas-cli init --force --non-interactive
 
