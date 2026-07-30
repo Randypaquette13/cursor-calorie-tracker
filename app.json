@@ -13,7 +13,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Camera access is used to scan product barcodes for nutrition lookup.",
         "NSMicrophoneUsageDescription": "Allow Cursor Calorie Tracker to use the microphone for voice food logging.",
-        "NSSpeechRecognitionUsageDescription": "Allow Cursor Calorie Tracker to transcribe what you ate."
+        "NSSpeechRecognitionUsageDescription": "Allow Cursor Calorie Tracker to transcribe what you ate.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
