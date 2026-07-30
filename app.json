@@ -10,7 +10,9 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Camera access is used to scan product barcodes for nutrition lookup."
+        "NSCameraUsageDescription": "Camera access is used to scan product barcodes for nutrition lookup.",
+        "NSMicrophoneUsageDescription": "Microphone access is used for voice food logging.",
+        "NSSpeechRecognitionUsageDescription": "Speech recognition is used to transcribe what you ate."
       }
     },
     "android": {
@@ -42,6 +44,13 @@
         "expo-camera",
         {
           "cameraPermission": "Allow Cursor Calorie Tracker to scan barcodes for nutrition lookup."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Cursor Calorie Tracker to use the microphone for voice food logging.",
+          "speechRecognitionPermission": "Allow Cursor Calorie Tracker to transcribe what you ate."
         }
       ]
     ],

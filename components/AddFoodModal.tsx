@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 
+import { SpeechMicButton } from '@/components/SpeechMicButton';
 import { Text } from '@/components/Themed';
 
 interface AddFoodModalProps {
@@ -19,6 +20,14 @@ interface AddFoodModalProps {
 
 export function AddFoodModal({ visible, loading, onClose, onSubmit }: AddFoodModalProps) {
   const [text, setText] = useState('');
+  const inputRef = useRef<TextInput>(null);
+
+  const appendTranscript = (transcript: string) => {
+    setText((current) => {
+      const trimmed = current.trim();
+      return trimmed ? `${trimmed} ${transcript}` : transcript;
+    });
+  };
 
   const handleSubmit = async () => {
     const trimmed = text.trim();
@@ -34,17 +43,26 @@ export function AddFoodModal({ visible, loading, onClose, onSubmit }: AddFoodMod
         <View style={styles.sheet}>
           <Text style={styles.title}>Log food</Text>
           <Text style={styles.subtitle}>
-            Describe what you ate in plain language. Cursor will estimate calories and macros.
+            Describe what you ate in plain language, or tap the mic to speak. Cursor will estimate
+            calories and macros.
           </Text>
-          <TextInput
-            style={styles.input}
-            placeholder='e.g. "2 eggs, toast with butter, and black coffee for breakfast"'
-            placeholderTextColor="#9CA3AF"
-            value={text}
-            onChangeText={setText}
-            multiline
-            editable={!loading}
-          />
+          <View style={styles.inputRow}>
+            <TextInput
+              ref={inputRef}
+              style={styles.input}
+              placeholder='e.g. "2 eggs, toast with butter, and black coffee for breakfast"'
+              placeholderTextColor="#9CA3AF"
+              value={text}
+              onChangeText={setText}
+              multiline
+              editable={!loading}
+            />
+            <SpeechMicButton
+              disabled={loading}
+              onTranscript={appendTranscript}
+              onFocusInput={() => inputRef.current?.focus()}
+            />
+          </View>
           <View style={styles.actions}>
             <Pressable style={styles.secondaryButton} onPress={onClose} disabled={loading}>
               <Text style={styles.secondaryText}>Cancel</Text>
@@ -88,7 +106,13 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 20,
   },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+  },
   input: {
+    flex: 1,
     minHeight: 120,
     borderWidth: 1,
     borderColor: '#D1D5DB',
