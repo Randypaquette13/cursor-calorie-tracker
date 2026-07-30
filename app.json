@@ -12,8 +12,8 @@
       "bundleIdentifier": "com.randypaquette13.cursorcalorietracker",
       "infoPlist": {
         "NSCameraUsageDescription": "Camera access is used to scan product barcodes for nutrition lookup.",
-        "NSMicrophoneUsageDescription": "Microphone access is used for voice food logging.",
-        "NSSpeechRecognitionUsageDescription": "Speech recognition is used to transcribe what you ate."
+        "NSMicrophoneUsageDescription": "Allow Cursor Calorie Tracker to use the microphone for voice food logging.",
+        "NSSpeechRecognitionUsageDescription": "Allow Cursor Calorie Tracker to transcribe what you ate."
       }
     },
     "android": {
@@ -24,7 +24,11 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -59,6 +63,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b7a7bff6-06de-484f-a340-c2e8b6f0b9d3"
+      }
+    },
+    "owner": "randypaq13"
   }
 }
