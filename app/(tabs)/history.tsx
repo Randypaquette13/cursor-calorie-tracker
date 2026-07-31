@@ -16,6 +16,7 @@ export default function HistoryScreen() {
     historySummary,
     today,
     removeEntry,
+    editEntry,
   } = useFood();
 
   const selectedLabel = useMemo(() => {
@@ -62,7 +63,7 @@ export default function HistoryScreen() {
 
       <Text style={styles.detailTitle}>{selectedLabel}</Text>
       <DailySummaryCard summary={historySummary} title="Day summary" />
-      <FoodEntryList entries={historyEntries} onDelete={removeEntry} />
+      <FoodEntryList entries={historyEntries} onDelete={removeEntry} onEdit={editEntry} />
     </ScrollView>
   );
 }

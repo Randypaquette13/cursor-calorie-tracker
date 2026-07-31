@@ -22,7 +22,7 @@ module.exports = {
     plugins: isEasBuild ? [...base.expo.plugins, ...easOnlyPlugins] : base.expo.plugins,
     extra: {
       ...base.expo.extra,
-      buildVersion: '2026-07-31-saved-foods-db-fix',
+      buildVersion: '2026-07-31-food-log-ui',
     },
   },
 };

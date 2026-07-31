@@ -13,7 +13,7 @@ import { inferMealType } from '@/utils/meal';
 import type { MealType } from '@/types/food';
 
 export default function TodayScreen() {
-  const { todaySummary, todayEntries, addEntry, removeEntry } = useFood();
+  const { todaySummary, todayEntries, addEntries, editEntry, removeEntry } = useFood();
   const { foods: savedFoods } = useSavedFoods();
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -22,19 +22,18 @@ export default function TodayScreen() {
     setLoading(true);
     try {
       const parsed = await parseNaturalLanguage(text, savedFoods);
-      for (const item of parsed.items) {
-        const mealType = (item.mealType ?? inferMealType(text)) as MealType;
-        await addEntry({
-          mealType,
+      await addEntries(
+        parsed.items.map((item) => ({
+          mealType: (item.mealType ?? inferMealType(text)) as MealType,
           name: item.name,
           calories: item.calories,
           protein: item.protein,
           carbs: item.carbs,
           fat: item.fat,
-          source: 'natural_language',
-          rawInput: text,
-        });
-      }
+          source: 'natural_language' as const,
+        })),
+        { rawInput: text },
+      );
     } catch (error) {
       Alert.alert(
         'Could not parse food',
@@ -60,9 +59,12 @@ export default function TodayScreen() {
             </Pressable>
           </Link>
         </View>
-        <Text style={styles.sectionTitle}>Meals</Text>
-        <FoodEntryList entries={todayEntries} onDelete={removeEntry} />
-        <Text style={styles.hint}>Long-press an entry to delete it.</Text>
+        <Text style={styles.sectionTitle}>Food</Text>
+        <FoodEntryList
+          entries={todayEntries}
+          onDelete={removeEntry}
+          onEdit={editEntry}
+        />
       </ScrollView>
       <AddFoodModal
         visible={modalVisible}
@@ -120,10 +122,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#111827',
-  },
-  hint: {
-    color: '#9CA3AF',
-    fontSize: 12,
-    textAlign: 'center',
   },
 });

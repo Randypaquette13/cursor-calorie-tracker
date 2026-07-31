@@ -8,8 +8,10 @@ import {
   getHistorySummaries,
   initDatabase,
   insertFoodEntry,
+  insertFoodEntries,
+  updateFoodEntry,
 } from '@/services/database';
-import type { DailySummary, FoodEntry, FoodSource, MealType } from '@/types/food';
+import type { DailySummary, FoodEntry, FoodEntryInput, MealType } from '@/types/food';
 
 interface FoodContextValue {
   ready: boolean;
@@ -22,17 +24,19 @@ interface FoodContextValue {
   historySummary: DailySummary;
   history: DailySummary[];
   refresh: () => Promise<void>;
-  addEntry: (entry: {
-    mealType: MealType;
-    name: string;
-    calories: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-    source: FoodSource;
-    rawInput?: string | null;
-    barcode?: string | null;
-  }) => Promise<void>;
+  addEntry: (entry: FoodEntryInput) => Promise<void>;
+  addEntries: (entries: FoodEntryInput[], options?: { rawInput?: string | null }) => Promise<void>;
+  editEntry: (
+    id: number,
+    entry: {
+      mealType: MealType;
+      name: string;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+    },
+  ) => Promise<void>;
   removeEntry: (id: number) => Promise<void>;
 }
 
@@ -97,17 +101,7 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
   }, [ready, refresh]);
 
   const addEntry = useCallback(
-    async (entry: {
-      mealType: MealType;
-      name: string;
-      calories: number;
-      protein: number;
-      carbs: number;
-      fat: number;
-      source: FoodSource;
-      rawInput?: string | null;
-      barcode?: string | null;
-    }) => {
+    async (entry: FoodEntryInput) => {
       await insertFoodEntry({
         ...entry,
         date: today,
@@ -115,6 +109,41 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
       await refresh();
     },
     [refresh, today],
+  );
+
+  const addEntries = useCallback(
+    async (entries: FoodEntryInput[], options?: { rawInput?: string | null }) => {
+      if (entries.length === 0) return;
+      if (entries.length === 1) {
+        await insertFoodEntry({
+          ...entries[0],
+          date: today,
+          rawInput: entries[0].rawInput ?? options?.rawInput ?? null,
+        });
+      } else {
+        await insertFoodEntries(today, entries, options);
+      }
+      await refresh();
+    },
+    [refresh, today],
+  );
+
+  const editEntry = useCallback(
+    async (
+      id: number,
+      entry: {
+        mealType: MealType;
+        name: string;
+        calories: number;
+        protein: number;
+        carbs: number;
+        fat: number;
+      },
+    ) => {
+      await updateFoodEntry(id, entry);
+      await refresh();
+    },
+    [refresh],
   );
 
   const removeEntry = useCallback(
@@ -138,6 +167,8 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
       history,
       refresh,
       addEntry,
+      addEntries,
+      editEntry,
       removeEntry,
     }),
     [
@@ -151,6 +182,8 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
       history,
       refresh,
       addEntry,
+      addEntries,
+      editEntry,
       removeEntry,
     ],
   );

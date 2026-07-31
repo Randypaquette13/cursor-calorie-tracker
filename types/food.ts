@@ -14,7 +14,20 @@ export interface FoodEntry {
   source: FoodSource;
   rawInput: string | null;
   barcode: string | null;
+  logGroupId: string | null;
   createdAt: string;
+}
+
+export interface FoodEntryInput {
+  mealType: MealType;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  source: FoodSource;
+  rawInput?: string | null;
+  barcode?: string | null;
 }
 
 export interface DailySummary {

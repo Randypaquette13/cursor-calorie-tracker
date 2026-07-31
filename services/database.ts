@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
-import type { DailySummary, FoodEntry, FoodSource, MealType, SavedFood } from '@/types/food';
+import type { DailySummary, FoodEntry, FoodEntryInput, FoodSource, MealType, SavedFood } from '@/types/food';
+import { createLogGroupId } from '@/utils/id';
 
 const DB_NAME = 'cursor_calorie_tracker.db';
 
@@ -30,10 +31,12 @@ async function runMigrations() {
       source TEXT NOT NULL,
       raw_input TEXT,
       barcode TEXT,
+      log_group_id TEXT,
       created_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_food_entries_date ON food_entries(date);
     CREATE INDEX IF NOT EXISTS idx_food_entries_created_at ON food_entries(created_at);
+    CREATE INDEX IF NOT EXISTS idx_food_entries_log_group_id ON food_entries(log_group_id);
     CREATE TABLE IF NOT EXISTS saved_foods (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -47,6 +50,14 @@ async function runMigrations() {
     );
     CREATE INDEX IF NOT EXISTS idx_saved_foods_name ON saved_foods(name);
   `);
+
+  const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(food_entries)`);
+  if (!columns.some((column) => column.name === 'log_group_id')) {
+    await db.execAsync(`ALTER TABLE food_entries ADD COLUMN log_group_id TEXT`);
+    await db.execAsync(
+      `CREATE INDEX IF NOT EXISTS idx_food_entries_log_group_id ON food_entries(log_group_id)`,
+    );
+  }
 }
 
 export async function initDatabase() {
@@ -74,28 +85,25 @@ function mapRow(row: Record<string, unknown>): FoodEntry {
     source: row.source as FoodSource,
     rawInput: (row.raw_input as string | null) ?? null,
     barcode: (row.barcode as string | null) ?? null,
+    logGroupId: (row.log_group_id as string | null) ?? null,
     createdAt: row.created_at as string,
   };
 }
 
-export async function insertFoodEntry(entry: {
-  date: string;
-  mealType: MealType;
-  name: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  source: FoodSource;
-  rawInput?: string | null;
-  barcode?: string | null;
-}) {
+export async function insertFoodEntry(
+  entry: FoodEntryInput & {
+    date: string;
+    logGroupId?: string | null;
+    createdAt?: string;
+  },
+) {
   const db = await ensureDb();
-  const createdAt = new Date().toISOString();
+  const createdAt = entry.createdAt ?? new Date().toISOString();
+  const logGroupId = entry.logGroupId ?? createLogGroupId();
   const result = await db.runAsync(
     `INSERT INTO food_entries
-      (date, meal_type, name, calories, protein, carbs, fat, source, raw_input, barcode, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (date, meal_type, name, calories, protein, carbs, fat, source, raw_input, barcode, log_group_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       entry.date,
       entry.mealType,
@@ -107,6 +115,7 @@ export async function insertFoodEntry(entry: {
       entry.source,
       entry.rawInput ?? null,
       entry.barcode ?? null,
+      logGroupId,
       createdAt,
     ],
   );
@@ -116,14 +125,38 @@ export async function insertFoodEntry(entry: {
     ...entry,
     rawInput: entry.rawInput ?? null,
     barcode: entry.barcode ?? null,
+    logGroupId,
     createdAt,
   } satisfies FoodEntry;
+}
+
+export async function insertFoodEntries(
+  date: string,
+  entries: FoodEntryInput[],
+  options?: { logGroupId?: string; createdAt?: string; rawInput?: string | null },
+) {
+  const logGroupId = options?.logGroupId ?? createLogGroupId();
+  const createdAt = options?.createdAt ?? new Date().toISOString();
+  const results: FoodEntry[] = [];
+
+  for (const entry of entries) {
+    const inserted = await insertFoodEntry({
+      ...entry,
+      date,
+      logGroupId,
+      createdAt,
+      rawInput: entry.rawInput ?? options?.rawInput ?? null,
+    });
+    results.push(inserted);
+  }
+
+  return results;
 }
 
 export async function getEntriesForDate(date: string) {
   const db = await ensureDb();
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    `SELECT * FROM food_entries WHERE date = ? ORDER BY created_at ASC`,
+    `SELECT * FROM food_entries WHERE date = ? ORDER BY created_at DESC, id DESC`,
     [date],
   );
   return rows.map(mapRow);
@@ -189,6 +222,34 @@ export async function getHistorySummaries(limit = 90): Promise<DailySummary[]> {
 export async function deleteFoodEntry(id: number) {
   const db = await ensureDb();
   await db.runAsync(`DELETE FROM food_entries WHERE id = ?`, [id]);
+}
+
+export async function updateFoodEntry(
+  id: number,
+  entry: {
+    mealType: MealType;
+    name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  },
+) {
+  const db = await ensureDb();
+  await db.runAsync(
+    `UPDATE food_entries
+     SET meal_type = ?, name = ?, calories = ?, protein = ?, carbs = ?, fat = ?
+     WHERE id = ?`,
+    [
+      entry.mealType,
+      entry.name.trim(),
+      entry.calories,
+      entry.protein,
+      entry.carbs,
+      entry.fat,
+      id,
+    ],
+  );
 }
 
 function mapSavedFoodRow(row: Record<string, unknown>): SavedFood {
