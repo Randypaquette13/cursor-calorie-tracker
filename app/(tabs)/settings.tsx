@@ -7,6 +7,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Constants from 'expo-constants';
 
 import { Text } from '@/components/Themed';
 import { clearApiKey, getStoredApiKey, saveApiKey } from '@/services/cursorParser';
@@ -14,6 +15,9 @@ import { clearApiKey, getStoredApiKey, saveApiKey } from '@/services/cursorParse
 export default function SettingsScreen() {
   const [apiKey, setApiKey] = useState('');
   const [saved, setSaved] = useState(false);
+  const buildVersion =
+    (Constants.expoConfig?.extra as { buildVersion?: string } | undefined)?.buildVersion ??
+    'unknown';
 
   useEffect(() => {
     (async () => {
@@ -88,6 +92,10 @@ export default function SettingsScreen() {
           All food logs are stored locally on your device with SQLite. Nothing is synced to the
           cloud unless you back up your phone.
         </Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>App build</Text>
+        <Text style={styles.cardBody}>Build tag: {buildVersion}</Text>
       </View>
     </ScrollView>
   );

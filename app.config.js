@@ -3,14 +3,26 @@ const base = require('./app.json');
 
 const isEasBuild = process.env.EAS_BUILD === 'true';
 
-const expoGoPlugins = base.expo.plugins.filter((plugin) => {
-  const name = Array.isArray(plugin) ? plugin[0] : plugin;
-  return name !== 'expo-dev-client' && name !== 'expo-speech-recognition';
-});
+const easOnlyPlugins = [
+  'expo-dev-client',
+  [
+    'expo-speech-recognition',
+    {
+      microphonePermission:
+        'Allow Cursor Calorie Tracker to use the microphone for voice food logging.',
+      speechRecognitionPermission:
+        'Allow Cursor Calorie Tracker to transcribe what you ate.',
+    },
+  ],
+];
 
 module.exports = {
   expo: {
     ...base.expo,
-    plugins: isEasBuild ? base.expo.plugins : expoGoPlugins,
+    plugins: isEasBuild ? [...base.expo.plugins, ...easOnlyPlugins] : base.expo.plugins,
+    extra: {
+      ...base.expo.extra,
+      buildVersion: '2026-07-31-expo-go-2',
+    },
   },
 };
