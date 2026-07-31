@@ -4,10 +4,9 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { DailySummaryCard } from '@/components/DailySummaryCard';
 import { FoodEntryList } from '@/components/FoodEntryList';
-import { NutritionText } from '@/components/NutritionText';
 import { Text } from '@/components/Themed';
 import { useFood } from '@/context/FoodContext';
-import { formatMacro, hasNutritionRange } from '@/utils/nutrition';
+import { formatCaloriesEstimate, formatMacroEstimate } from '@/utils/nutrition';
 
 export default function HistoryScreen() {
   const {
@@ -42,7 +41,6 @@ export default function HistoryScreen() {
         ) : (
           history.map((day) => {
             const selected = day.date === historySelectedDate;
-            const dayHasRange = hasNutritionRange(day.caloriesMin, day.caloriesMax);
             return (
               <Pressable
                 key={day.date}
@@ -53,22 +51,11 @@ export default function HistoryScreen() {
                     {day.date === today ? 'Today' : day.date}
                   </Text>
                   <Text style={styles.historyMeta}>
-                    {day.entryCount} entries · P{' '}
-                    {formatMacro(day.protein, day.proteinMin, day.proteinMax)} · C{' '}
-                    {formatMacro(day.carbs, day.carbsMin, day.carbsMax)} · F{' '}
-                    {formatMacro(day.fat, day.fatMin, day.fatMax)}
+                    {day.entryCount} entries · P {formatMacroEstimate(day.protein)} · C{' '}
+                    {formatMacroEstimate(day.carbs)} · F {formatMacroEstimate(day.fat)}
                   </Text>
-                  {dayHasRange ? <Text style={styles.rangeHint}>Includes estimated ranges</Text> : null}
                 </View>
-                <NutritionText
-                  kind="calories"
-                  value={day.calories}
-                  min={day.caloriesMin}
-                  max={day.caloriesMax}
-                  style={styles.historyCalories}
-                  adjustsFontSizeToFit
-                  numberOfLines={1}
-                />
+                <Text style={styles.historyCalories}>{formatCaloriesEstimate(day.calories)}</Text>
               </Pressable>
             );
           })
@@ -132,16 +119,10 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontSize: 13,
   },
-  rangeHint: {
-    color: '#92400E',
-    fontSize: 11,
-    fontWeight: '600',
-  },
   historyCalories: {
     fontSize: 16,
     fontWeight: '700',
     color: '#059669',
-    maxWidth: 120,
   },
   emptyHistory: {
     backgroundColor: '#F3F4F6',

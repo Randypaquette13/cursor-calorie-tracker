@@ -14,14 +14,6 @@ function formatNutrition(food: SavedFood) {
     protein: food.protein ?? 0,
     carbs: food.carbs ?? 0,
     fat: food.fat ?? 0,
-    caloriesMin: food.calories,
-    caloriesMax: food.calories,
-    proteinMin: food.protein ?? 0,
-    proteinMax: food.protein ?? 0,
-    carbsMin: food.carbs ?? 0,
-    carbsMax: food.carbs ?? 0,
-    fatMin: food.fat ?? 0,
-    fatMax: food.fat ?? 0,
   });
 }
 

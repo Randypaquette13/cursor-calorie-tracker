@@ -13,7 +13,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/Themed';
 import type { FoodEntry, MealType } from '@/types/food';
-import { formatFullNutrition, hasNutritionRange, midpoint } from '@/utils/nutrition';
+import {
+  formatCaloriesEstimate,
+  formatCaloriesRange,
+  formatFullNutrition,
+  midpoint,
+} from '@/utils/nutrition';
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack', 'unknown'];
 
@@ -161,20 +166,13 @@ export function EditFoodEntryModal({ visible, entry, onClose, onSave }: EditFood
   };
 
   const currentPreview = entry
-    ? formatFullNutrition({
-        calories: entry.calories,
-        protein: entry.protein,
-        carbs: entry.carbs,
-        fat: entry.fat,
-        caloriesMin: entry.caloriesMin,
-        caloriesMax: entry.caloriesMax,
-        proteinMin: entry.proteinMin,
-        proteinMax: entry.proteinMax,
-        carbsMin: entry.carbsMin,
-        carbsMax: entry.carbsMax,
-        fatMin: entry.fatMin,
-        fatMax: entry.fatMax,
-      })
+    ? [
+        formatCaloriesEstimate(entry.calories),
+        formatCaloriesRange(entry.caloriesMin, entry.caloriesMax),
+        formatFullNutrition(entry),
+      ]
+        .filter(Boolean)
+        .join(' · ')
     : null;
 
   return (
@@ -190,8 +188,8 @@ export function EditFoodEntryModal({ visible, entry, onClose, onSave }: EditFood
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.sheetContent}>
             <Text style={styles.title}>Edit food</Text>
-            {entry && hasNutritionRange(entry.caloriesMin, entry.caloriesMax) && currentPreview ? (
-              <Text style={styles.preview}>Current estimate: {currentPreview}</Text>
+            {entry && currentPreview ? (
+              <Text style={styles.preview}>Current: {currentPreview}</Text>
             ) : null}
             <Text style={styles.helper}>
               Use a min-max range when the portion is uncertain. Set both fields the same for an

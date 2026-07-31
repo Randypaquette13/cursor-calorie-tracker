@@ -8,28 +8,26 @@ export function hasNutritionRange(min: number | null, max: number | null) {
   return Math.round(min) !== Math.round(max);
 }
 
-export function isNutritionRange(min: number | null, max: number | null, point: number) {
-  return hasNutritionRange(min, max);
+export function formatCaloriesEstimate(point: number) {
+  return `${Math.round(point)} kcal`;
 }
 
-export function formatNutritionAmount(
-  point: number,
-  min: number | null,
-  max: number | null,
-  unit = '',
-) {
-  if (min != null && max != null && Math.round(min) !== Math.round(max)) {
-    return `${Math.round(min)}-${Math.round(max)}${unit}`;
-  }
-  return `${Math.round(point)}${unit}`;
+export function formatMacroEstimate(point: number) {
+  return `${Math.round(point)}g`;
 }
 
-export function formatCalories(point: number, min: number | null, max: number | null) {
-  return `${formatNutritionAmount(point, min, max)} kcal`;
+export function formatRangeBand(min: number | null, max: number | null, unit = '') {
+  if (!hasNutritionRange(min, max)) return null;
+  return `${Math.round(min!)}-${Math.round(max!)}${unit}`;
 }
 
-export function formatMacro(point: number, min: number | null, max: number | null) {
-  return `${formatNutritionAmount(point, min, max)}g`;
+export function formatCaloriesRange(min: number | null, max: number | null) {
+  const band = formatRangeBand(min, max);
+  return band ? `${band} kcal` : null;
+}
+
+export function formatMacroRange(min: number | null, max: number | null) {
+  return formatRangeBand(min, max, 'g');
 }
 
 export function midpoint(min: number, max: number) {
@@ -85,29 +83,15 @@ export function exactNutrition(values: {
 
 export function formatMacroLine(entry: {
   calories?: number;
-  caloriesMin?: number | null;
-  caloriesMax?: number | null;
   protein: number;
   carbs: number;
   fat: number;
-  proteinMin?: number | null;
-  proteinMax?: number | null;
-  carbsMin?: number | null;
-  carbsMax?: number | null;
-  fatMin?: number | null;
-  fatMax?: number | null;
 }) {
   const parts = [
-    entry.calories != null
-      ? formatCalories(
-          entry.calories,
-          entry.caloriesMin ?? entry.calories,
-          entry.caloriesMax ?? entry.calories,
-        )
-      : null,
-    `P ${formatMacro(entry.protein, entry.proteinMin ?? entry.protein, entry.proteinMax ?? entry.protein)}`,
-    `C ${formatMacro(entry.carbs, entry.carbsMin ?? entry.carbs, entry.carbsMax ?? entry.carbs)}`,
-    `F ${formatMacro(entry.fat, entry.fatMin ?? entry.fat, entry.fatMax ?? entry.fat)}`,
+    entry.calories != null ? formatCaloriesEstimate(entry.calories) : null,
+    `P ${formatMacroEstimate(entry.protein)}`,
+    `C ${formatMacroEstimate(entry.carbs)}`,
+    `F ${formatMacroEstimate(entry.fat)}`,
   ].filter(Boolean);
 
   return parts.join(' · ');
@@ -118,14 +102,6 @@ export function formatFullNutrition(entry: {
   protein: number;
   carbs: number;
   fat: number;
-  caloriesMin?: number | null;
-  caloriesMax?: number | null;
-  proteinMin?: number | null;
-  proteinMax?: number | null;
-  carbsMin?: number | null;
-  carbsMax?: number | null;
-  fatMin?: number | null;
-  fatMax?: number | null;
 }) {
   return formatMacroLine(entry);
 }
