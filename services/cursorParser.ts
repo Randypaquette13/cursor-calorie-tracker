@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
-import type { ParsedFoodResponse, ParsedFoodItem, MealType } from '@/types/food';
+import type { ParsedFoodResponse, ParsedFoodItem, MealType, SavedFood } from '@/types/food';
 
 const API_BASE = 'https://api.cursor.com/v1';
 const AGENT_ID_KEY = 'cursor_parser_agent_id';
@@ -26,7 +26,26 @@ Rules:
 - Split multi-item meals into separate items when possible.
 - Infer mealType from words like breakfast/lunch/dinner/snack, otherwise null.
 - Use reasonable portion estimates when amounts are vague.
-- All macro and calorie values must be numbers.`;
+- All macro and calorie values must be numbers.
+- When the user mentions a saved food by name (exact or close match), use that food's description and known nutrition instead of guessing.`;
+
+function formatSavedFoodsForPrompt(savedFoods: SavedFood[]): string {
+  if (savedFoods.length === 0) return '';
+
+  const lines = savedFoods.map((food) => {
+    const known =
+      food.calories != null
+        ? ` Known nutrition: ${Math.round(food.calories)} cal, P ${Math.round(food.protein ?? 0)}g, C ${Math.round(food.carbs ?? 0)}g, F ${Math.round(food.fat ?? 0)}g.`
+        : '';
+    return `- "${food.name}": ${food.description}.${known}`;
+  });
+
+  return `\n\nThe user has saved these personal foods. When their input matches or refers to a saved food name, use that food's description and known nutrition (when provided) instead of guessing:\n${lines.join('\n')}`;
+}
+
+function buildParsePrompt(input: string, savedFoods: SavedFood[]): string {
+  return `${SYSTEM_PROMPT}${formatSavedFoodsForPrompt(savedFoods)}\n\nFood description: ${input}`;
+}
 
 export async function getStoredApiKey() {
   return SecureStore.getItemAsync(API_KEY_KEY);
@@ -127,7 +146,10 @@ function normalizeItem(item: ParsedFoodItem): ParsedFoodItem {
   };
 }
 
-export async function parseNaturalLanguage(input: string): Promise<ParsedFoodResponse> {
+export async function parseNaturalLanguage(
+  input: string,
+  savedFoods: SavedFood[] = [],
+): Promise<ParsedFoodResponse> {
   const apiKey = await getStoredApiKey();
   if (!apiKey) {
     throw new Error('Add your Cursor API key in Settings first.');
@@ -138,7 +160,7 @@ export async function parseNaturalLanguage(input: string): Promise<ParsedFoodRes
     method: 'POST',
     body: JSON.stringify({
       prompt: {
-        text: `${SYSTEM_PROMPT}\n\nFood description: ${input}`,
+        text: buildParsePrompt(input, savedFoods),
       },
     }),
   })) as { run: { id: string } };

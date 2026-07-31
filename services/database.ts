@@ -1,6 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 
-import type { DailySummary, FoodEntry, FoodSource, MealType } from '@/types/food';
+import type { DailySummary, FoodEntry, FoodSource, MealType, SavedFood } from '@/types/food';
 
 const DB_NAME = 'cursor_calorie_tracker.db';
 
@@ -33,6 +33,18 @@ export async function initDatabase() {
     );
     CREATE INDEX IF NOT EXISTS idx_food_entries_date ON food_entries(date);
     CREATE INDEX IF NOT EXISTS idx_food_entries_created_at ON food_entries(created_at);
+    CREATE TABLE IF NOT EXISTS saved_foods (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL,
+      calories REAL,
+      protein REAL,
+      carbs REAL,
+      fat REAL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_saved_foods_name ON saved_foods(name);
   `);
 }
 
@@ -164,4 +176,99 @@ export async function getHistorySummaries(limit = 90): Promise<DailySummary[]> {
 export async function deleteFoodEntry(id: number) {
   const db = await getDb();
   await db.runAsync(`DELETE FROM food_entries WHERE id = ?`, [id]);
+}
+
+function mapSavedFoodRow(row: Record<string, unknown>): SavedFood {
+  return {
+    id: row.id as number,
+    name: row.name as string,
+    description: row.description as string,
+    calories: (row.calories as number | null) ?? null,
+    protein: (row.protein as number | null) ?? null,
+    carbs: (row.carbs as number | null) ?? null,
+    fat: (row.fat as number | null) ?? null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+export async function getSavedFoods(): Promise<SavedFood[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM saved_foods ORDER BY name COLLATE NOCASE ASC`,
+  );
+  return rows.map(mapSavedFoodRow);
+}
+
+export async function insertSavedFood(entry: {
+  name: string;
+  description: string;
+  calories?: number | null;
+  protein?: number | null;
+  carbs?: number | null;
+  fat?: number | null;
+}) {
+  const db = await getDb();
+  const now = new Date().toISOString();
+  const result = await db.runAsync(
+    `INSERT INTO saved_foods (name, description, calories, protein, carbs, fat, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      entry.name.trim(),
+      entry.description.trim(),
+      entry.calories ?? null,
+      entry.protein ?? null,
+      entry.carbs ?? null,
+      entry.fat ?? null,
+      now,
+      now,
+    ],
+  );
+
+  return {
+    id: result.lastInsertRowId,
+    name: entry.name.trim(),
+    description: entry.description.trim(),
+    calories: entry.calories ?? null,
+    protein: entry.protein ?? null,
+    carbs: entry.carbs ?? null,
+    fat: entry.fat ?? null,
+    createdAt: now,
+    updatedAt: now,
+  } satisfies SavedFood;
+}
+
+export async function updateSavedFood(
+  id: number,
+  entry: {
+    name: string;
+    description: string;
+    calories?: number | null;
+    protein?: number | null;
+    carbs?: number | null;
+    fat?: number | null;
+  },
+) {
+  const db = await getDb();
+  const now = new Date().toISOString();
+  await db.runAsync(
+    `UPDATE saved_foods
+     SET name = ?, description = ?, calories = ?, protein = ?, carbs = ?, fat = ?, updated_at = ?
+     WHERE id = ?`,
+    [
+      entry.name.trim(),
+      entry.description.trim(),
+      entry.calories ?? null,
+      entry.protein ?? null,
+      entry.carbs ?? null,
+      entry.fat ?? null,
+      now,
+      id,
+    ],
+  );
+}
+
+export async function deleteSavedFood(id: number) {
+  const db = await getDb();
+  await db.runAsync(`DELETE FROM saved_foods WHERE id = ?`, [id]);
 }

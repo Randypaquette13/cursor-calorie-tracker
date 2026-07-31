@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { FoodProvider } from '@/context/FoodContext';
+import { SavedFoodsProvider } from '@/context/SavedFoodsContext';
 
 export {
   ErrorBoundary,
@@ -45,18 +46,20 @@ function RootLayoutNav() {
 
   return (
     <FoodProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="barcode"
-            options={{
-              title: 'Scan barcode',
-              presentation: 'modal',
-            }}
-          />
-        </Stack>
-      </ThemeProvider>
+      <SavedFoodsProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="barcode"
+              options={{
+                title: 'Scan barcode',
+                presentation: 'modal',
+              }}
+            />
+          </Stack>
+        </ThemeProvider>
+      </SavedFoodsProvider>
     </FoodProvider>
   );
 }

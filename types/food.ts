@@ -38,3 +38,15 @@ export interface ParsedFoodItem {
 export interface ParsedFoodResponse {
   items: ParsedFoodItem[];
 }
+
+export interface SavedFood {
+  id: number;
+  name: string;
+  description: string;
+  calories: number | null;
+  protein: number | null;
+  carbs: number | null;
+  fat: number | null;
+  createdAt: string;
+  updatedAt: string;
+}

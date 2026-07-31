@@ -7,19 +7,21 @@ import { DailySummaryCard } from '@/components/DailySummaryCard';
 import { FoodEntryList } from '@/components/FoodEntryList';
 import { Text } from '@/components/Themed';
 import { useFood } from '@/context/FoodContext';
+import { useSavedFoods } from '@/context/SavedFoodsContext';
 import { parseNaturalLanguage } from '@/services/cursorParser';
 import { inferMealType } from '@/utils/meal';
 import type { MealType } from '@/types/food';
 
 export default function TodayScreen() {
   const { todaySummary, todayEntries, addEntry, removeEntry } = useFood();
+  const { foods: savedFoods } = useSavedFoods();
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleParse = async (text: string) => {
     setLoading(true);
     try {
-      const parsed = await parseNaturalLanguage(text);
+      const parsed = await parseNaturalLanguage(text, savedFoods);
       for (const item of parsed.items) {
         const mealType = (item.mealType ?? inferMealType(text)) as MealType;
         await addEntry({
