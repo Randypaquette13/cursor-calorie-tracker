@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/Themed';
 import type { FoodEntry, MealType } from '@/types/food';
+import { formatFullNutrition, hasNutritionRange, midpoint } from '@/utils/nutrition';
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack', 'unknown'];
 
@@ -23,6 +24,14 @@ export interface FoodEntryEditInput {
   protein: number;
   carbs: number;
   fat: number;
+  caloriesMin: number;
+  caloriesMax: number;
+  proteinMin: number;
+  proteinMax: number;
+  carbsMin: number;
+  carbsMax: number;
+  fatMin: number;
+  fatMax: number;
 }
 
 interface EditFoodEntryModalProps {
@@ -37,45 +46,136 @@ function parseNumber(value: string, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function parseBounds(minValue: string, maxValue: string, fallback: number) {
+  const min = parseNumber(minValue, fallback);
+  const max = parseNumber(maxValue, min);
+  return {
+    min: Math.min(min, max),
+    max: Math.max(min, max),
+    point: midpoint(Math.min(min, max), Math.max(min, max)),
+  };
+}
+
+function BoundField({
+  label,
+  minValue,
+  maxValue,
+  onChangeMin,
+  onChangeMax,
+  disabled,
+}: {
+  label: string;
+  minValue: string;
+  maxValue: string;
+  onChangeMin: (value: string) => void;
+  onChangeMax: (value: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <View style={styles.boundField}>
+      <Text style={styles.macroLabel}>{label}</Text>
+      <View style={styles.boundInputs}>
+        <TextInput
+          style={styles.boundInput}
+          keyboardType="numeric"
+          value={minValue}
+          onChangeText={onChangeMin}
+          editable={!disabled}
+          placeholder="Min"
+          placeholderTextColor="#9CA3AF"
+        />
+        <Text style={styles.boundDash}>-</Text>
+        <TextInput
+          style={styles.boundInput}
+          keyboardType="numeric"
+          value={maxValue}
+          onChangeText={onChangeMax}
+          editable={!disabled}
+          placeholder="Max"
+          placeholderTextColor="#9CA3AF"
+        />
+      </View>
+    </View>
+  );
+}
+
 export function EditFoodEntryModal({ visible, entry, onClose, onSave }: EditFoodEntryModalProps) {
   const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [mealType, setMealType] = useState<MealType>('unknown');
-  const [calories, setCalories] = useState('');
-  const [protein, setProtein] = useState('');
-  const [carbs, setCarbs] = useState('');
-  const [fat, setFat] = useState('');
+  const [caloriesMin, setCaloriesMin] = useState('');
+  const [caloriesMax, setCaloriesMax] = useState('');
+  const [proteinMin, setProteinMin] = useState('');
+  const [proteinMax, setProteinMax] = useState('');
+  const [carbsMin, setCarbsMin] = useState('');
+  const [carbsMax, setCarbsMax] = useState('');
+  const [fatMin, setFatMin] = useState('');
+  const [fatMax, setFatMax] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!visible || !entry) return;
     setName(entry.name);
     setMealType(entry.mealType);
-    setCalories(String(Math.round(entry.calories)));
-    setProtein(String(Math.round(entry.protein)));
-    setCarbs(String(Math.round(entry.carbs)));
-    setFat(String(Math.round(entry.fat)));
+    setCaloriesMin(String(Math.round(entry.caloriesMin ?? entry.calories)));
+    setCaloriesMax(String(Math.round(entry.caloriesMax ?? entry.calories)));
+    setProteinMin(String(Math.round(entry.proteinMin ?? entry.protein)));
+    setProteinMax(String(Math.round(entry.proteinMax ?? entry.protein)));
+    setCarbsMin(String(Math.round(entry.carbsMin ?? entry.carbs)));
+    setCarbsMax(String(Math.round(entry.carbsMax ?? entry.carbs)));
+    setFatMin(String(Math.round(entry.fatMin ?? entry.fat)));
+    setFatMax(String(Math.round(entry.fatMax ?? entry.fat)));
   }, [entry, visible]);
 
   const handleSave = async () => {
     const trimmedName = name.trim();
     if (!trimmedName || saving) return;
 
+    const calories = parseBounds(caloriesMin, caloriesMax, 0);
+    const protein = parseBounds(proteinMin, proteinMax, 0);
+    const carbs = parseBounds(carbsMin, carbsMax, 0);
+    const fat = parseBounds(fatMin, fatMax, 0);
+
     setSaving(true);
     try {
       await onSave({
         mealType,
         name: trimmedName,
-        calories: parseNumber(calories),
-        protein: parseNumber(protein),
-        carbs: parseNumber(carbs),
-        fat: parseNumber(fat),
+        calories: calories.point,
+        protein: protein.point,
+        carbs: carbs.point,
+        fat: fat.point,
+        caloriesMin: calories.min,
+        caloriesMax: calories.max,
+        proteinMin: protein.min,
+        proteinMax: protein.max,
+        carbsMin: carbs.min,
+        carbsMax: carbs.max,
+        fatMin: fat.min,
+        fatMax: fat.max,
       });
       onClose();
     } finally {
       setSaving(false);
     }
   };
+
+  const currentPreview = entry
+    ? formatFullNutrition({
+        calories: entry.calories,
+        protein: entry.protein,
+        carbs: entry.carbs,
+        fat: entry.fat,
+        caloriesMin: entry.caloriesMin,
+        caloriesMax: entry.caloriesMax,
+        proteinMin: entry.proteinMin,
+        proteinMax: entry.proteinMax,
+        carbsMin: entry.carbsMin,
+        carbsMax: entry.carbsMax,
+        fatMin: entry.fatMin,
+        fatMax: entry.fatMax,
+      })
+    : null;
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -90,6 +190,13 @@ export function EditFoodEntryModal({ visible, entry, onClose, onSave }: EditFood
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.sheetContent}>
             <Text style={styles.title}>Edit food</Text>
+            {entry && hasNutritionRange(entry.caloriesMin, entry.caloriesMax) && currentPreview ? (
+              <Text style={styles.preview}>Current estimate: {currentPreview}</Text>
+            ) : null}
+            <Text style={styles.helper}>
+              Use a min-max range when the portion is uncertain. Set both fields the same for an
+              exact value.
+            </Text>
 
             <Text style={styles.label}>Name</Text>
             <TextInput
@@ -117,49 +224,39 @@ export function EditFoodEntryModal({ visible, entry, onClose, onSave }: EditFood
               })}
             </View>
 
-            <Text style={styles.label}>Nutrition</Text>
-            <View style={styles.macroRow}>
-              <View style={styles.macroField}>
-                <Text style={styles.macroLabel}>Cal</Text>
-                <TextInput
-                  style={styles.macroInput}
-                  keyboardType="numeric"
-                  value={calories}
-                  onChangeText={setCalories}
-                  editable={!saving}
-                />
-              </View>
-              <View style={styles.macroField}>
-                <Text style={styles.macroLabel}>P</Text>
-                <TextInput
-                  style={styles.macroInput}
-                  keyboardType="numeric"
-                  value={protein}
-                  onChangeText={setProtein}
-                  editable={!saving}
-                />
-              </View>
-              <View style={styles.macroField}>
-                <Text style={styles.macroLabel}>C</Text>
-                <TextInput
-                  style={styles.macroInput}
-                  keyboardType="numeric"
-                  value={carbs}
-                  onChangeText={setCarbs}
-                  editable={!saving}
-                />
-              </View>
-              <View style={styles.macroField}>
-                <Text style={styles.macroLabel}>F</Text>
-                <TextInput
-                  style={styles.macroInput}
-                  keyboardType="numeric"
-                  value={fat}
-                  onChangeText={setFat}
-                  editable={!saving}
-                />
-              </View>
-            </View>
+            <Text style={styles.label}>Nutrition ranges</Text>
+            <BoundField
+              label="Calories"
+              minValue={caloriesMin}
+              maxValue={caloriesMax}
+              onChangeMin={setCaloriesMin}
+              onChangeMax={setCaloriesMax}
+              disabled={saving}
+            />
+            <BoundField
+              label="Protein (g)"
+              minValue={proteinMin}
+              maxValue={proteinMax}
+              onChangeMin={setProteinMin}
+              onChangeMax={setProteinMax}
+              disabled={saving}
+            />
+            <BoundField
+              label="Carbs (g)"
+              minValue={carbsMin}
+              maxValue={carbsMax}
+              onChangeMin={setCarbsMin}
+              onChangeMax={setCarbsMax}
+              disabled={saving}
+            />
+            <BoundField
+              label="Fat (g)"
+              minValue={fatMin}
+              maxValue={fatMax}
+              onChangeMin={setFatMin}
+              onChangeMax={setFatMax}
+              disabled={saving}
+            />
 
             <View style={styles.actions}>
               <Pressable style={styles.secondaryButton} onPress={onClose} disabled={saving}>
@@ -204,6 +301,16 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginBottom: 4,
   },
+  preview: {
+    color: '#059669',
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  helper: {
+    color: '#6B7280',
+    lineHeight: 20,
+    marginBottom: 4,
+  },
   label: {
     fontSize: 14,
     fontWeight: '600',
@@ -244,12 +351,7 @@ const styles = StyleSheet.create({
   mealChipTextSelected: {
     color: '#047857',
   },
-  macroRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  macroField: {
-    flex: 1,
+  boundField: {
     gap: 4,
   },
   macroLabel: {
@@ -257,7 +359,13 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontWeight: '600',
   },
-  macroInput: {
+  boundInputs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  boundInput: {
+    flex: 1,
     borderWidth: 1,
     borderColor: '#D1D5DB',
     borderRadius: 10,
@@ -266,6 +374,10 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontSize: 16,
     textAlign: 'center',
+  },
+  boundDash: {
+    color: '#6B7280',
+    fontWeight: '700',
   },
   actions: {
     flexDirection: 'row',

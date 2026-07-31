@@ -13,6 +13,7 @@ import { router } from 'expo-router';
 import { useFood } from '@/context/FoodContext';
 import { lookupBarcode } from '@/services/openFoodFacts';
 import { inferMealType } from '@/utils/meal';
+import { formatFullNutrition } from '@/utils/nutrition';
 
 export default function BarcodeScreen() {
   const { addEntry } = useFood();
@@ -51,7 +52,7 @@ export default function BarcodeScreen() {
         source: 'barcode',
         barcode: data,
       });
-      Alert.alert('Logged', `${product.name}\n${Math.round(product.calories)} kcal`, [
+      Alert.alert('Logged', `${product.name}\n${formatFullNutrition(product)}`, [
         { text: 'Scan another', onPress: () => setScanning(true) },
         { text: 'Done', onPress: () => router.back() },
       ]);

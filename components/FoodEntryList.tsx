@@ -4,10 +4,11 @@ import { useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { EditFoodEntryModal } from '@/components/EditFoodEntryModal';
+import { NutritionText } from '@/components/NutritionText';
 import { Text } from '@/components/Themed';
 import type { FoodEntry } from '@/types/food';
 import { groupFoodEntries, sumGroupNutrition } from '@/utils/foodGroups';
-import { formatCalories, formatMacroLine } from '@/utils/nutrition';
+import { formatMacro, formatMacroLine, hasNutritionRange } from '@/utils/nutrition';
 
 interface FoodEntryListProps {
   entries: FoodEntry[];
@@ -21,6 +22,14 @@ interface FoodEntryListProps {
       protein: number;
       carbs: number;
       fat: number;
+      caloriesMin: number;
+      caloriesMax: number;
+      proteinMin: number;
+      proteinMax: number;
+      carbsMin: number;
+      carbsMax: number;
+      fatMin: number;
+      fatMax: number;
     },
   ) => Promise<void>;
 }
@@ -31,6 +40,23 @@ function formatLoggedTime(createdAt: string) {
   } catch {
     return createdAt;
   }
+}
+
+function formatEntryMacroLine(entry: FoodEntry) {
+  return `P ${formatMacro(entry.protein, entry.proteinMin, entry.proteinMax)} · C ${formatMacro(
+    entry.carbs,
+    entry.carbsMin,
+    entry.carbsMax,
+  )} · F ${formatMacro(entry.fat, entry.fatMin, entry.fatMax)}`;
+}
+
+function entryHasRange(entry: FoodEntry) {
+  return (
+    hasNutritionRange(entry.caloriesMin, entry.caloriesMax) ||
+    hasNutritionRange(entry.proteinMin, entry.proteinMax) ||
+    hasNutritionRange(entry.carbsMin, entry.carbsMax) ||
+    hasNutritionRange(entry.fatMin, entry.fatMax)
+  );
 }
 
 function showEntryMenu(
@@ -97,15 +123,23 @@ export function FoodEntryList({ entries, onDelete, onEdit }: FoodEntryListProps)
         {groups.map((group) => {
           const totals = sumGroupNutrition(group.entries);
           const loggedAt = formatLoggedTime(group.createdAt);
+          const groupHasRange = hasNutritionRange(totals.caloriesMin, totals.caloriesMax);
 
           if (group.isMulti) {
             return (
               <View key={group.id} style={styles.groupCard}>
                 <View style={styles.groupHeader}>
-                  <Text style={styles.groupTime}>{loggedAt}</Text>
-                  <Text style={styles.groupCalories}>
-                    {formatCalories(totals.calories, totals.caloriesMin, totals.caloriesMax)}
-                  </Text>
+                  <View style={styles.groupHeaderLeft}>
+                    <Text style={styles.groupTime}>{loggedAt}</Text>
+                    {groupHasRange ? <Text style={styles.rangeBadge}>estimate</Text> : null}
+                  </View>
+                  <NutritionText
+                    kind="calories"
+                    value={totals.calories}
+                    min={totals.caloriesMin}
+                    max={totals.caloriesMax}
+                    style={styles.groupCalories}
+                  />
                 </View>
                 <View style={styles.groupItems}>
                   {group.entries.map((entry, index) => (
@@ -117,10 +151,7 @@ export function FoodEntryList({ entries, onDelete, onEdit }: FoodEntryListProps)
                       ]}>
                       <View style={styles.groupItemContent}>
                         <Text style={styles.itemName}>{entry.name}</Text>
-                        <Text style={styles.groupItemMeta}>
-                          {formatCalories(entry.calories, entry.caloriesMin, entry.caloriesMax)} ·{' '}
-                          {formatMacroLine(entry)}
-                        </Text>
+                        <Text style={styles.groupItemMeta}>{formatMacroLine(entry)}</Text>
                       </View>
                       <EntryMenuButton
                         entry={entry}
@@ -137,14 +168,22 @@ export function FoodEntryList({ entries, onDelete, onEdit }: FoodEntryListProps)
           }
 
           const entry = group.entries[0];
+
           return (
             <View key={group.id} style={styles.item}>
               <View style={styles.itemTopRow}>
                 <View style={styles.itemMain}>
-                  <Text style={styles.itemName}>{entry.name}</Text>
-                  <Text style={styles.itemCaloriesInline}>
-                    {formatCalories(entry.calories, entry.caloriesMin, entry.caloriesMax)}
-                  </Text>
+                  <View style={styles.itemTitleRow}>
+                    <Text style={styles.itemName}>{entry.name}</Text>
+                    {entryHasRange(entry) ? <Text style={styles.rangeBadge}>estimate</Text> : null}
+                  </View>
+                  <NutritionText
+                    kind="calories"
+                    value={entry.calories}
+                    min={entry.caloriesMin}
+                    max={entry.caloriesMax}
+                    style={styles.itemCaloriesInline}
+                  />
                 </View>
                 <EntryMenuButton
                   entry={entry}
@@ -155,7 +194,7 @@ export function FoodEntryList({ entries, onDelete, onEdit }: FoodEntryListProps)
               </View>
               <Text style={styles.itemMeta}>
                 {loggedAt}
-                {entry.mealType !== 'unknown' ? ` · ${entry.mealType}` : ''} · {formatMacroLine(entry)}
+                {entry.mealType !== 'unknown' ? ` · ${entry.mealType}` : ''} · {formatEntryMacroLine(entry)}
               </Text>
               <Text style={styles.itemSource}>
                 {entry.source === 'barcode' ? `Barcode ${entry.barcode}` : 'Natural language'}
@@ -204,8 +243,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  itemName: {
+  itemTitleRow: {
     flex: 1,
+    gap: 4,
+  },
+  itemName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
@@ -241,6 +283,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    gap: 12,
+  },
+  groupHeaderLeft: {
+    gap: 4,
   },
   groupTime: {
     fontSize: 14,
@@ -278,6 +324,18 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     color: '#9CA3AF',
     fontSize: 12,
+  },
+  rangeBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FEF3C7',
+    color: '#92400E',
+    fontSize: 11,
+    fontWeight: '700',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    overflow: 'hidden',
+    textTransform: 'uppercase',
   },
   menuButton: {
     padding: 4,

@@ -4,9 +4,10 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { DailySummaryCard } from '@/components/DailySummaryCard';
 import { FoodEntryList } from '@/components/FoodEntryList';
+import { NutritionText } from '@/components/NutritionText';
 import { Text } from '@/components/Themed';
 import { useFood } from '@/context/FoodContext';
-import { formatCalories, formatMacro } from '@/utils/nutrition';
+import { formatMacro, hasNutritionRange } from '@/utils/nutrition';
 
 export default function HistoryScreen() {
   const {
@@ -41,12 +42,13 @@ export default function HistoryScreen() {
         ) : (
           history.map((day) => {
             const selected = day.date === historySelectedDate;
+            const dayHasRange = hasNutritionRange(day.caloriesMin, day.caloriesMax);
             return (
               <Pressable
                 key={day.date}
                 style={[styles.historyItem, selected && styles.historyItemSelected]}
                 onPress={() => setHistorySelectedDate(day.date)}>
-                <View>
+                <View style={styles.historyCopy}>
                   <Text style={styles.historyDate}>
                     {day.date === today ? 'Today' : day.date}
                   </Text>
@@ -56,10 +58,17 @@ export default function HistoryScreen() {
                     {formatMacro(day.carbs, day.carbsMin, day.carbsMax)} · F{' '}
                     {formatMacro(day.fat, day.fatMin, day.fatMax)}
                   </Text>
+                  {dayHasRange ? <Text style={styles.rangeHint}>Includes estimated ranges</Text> : null}
                 </View>
-                <Text style={styles.historyCalories}>
-                  {formatCalories(day.calories, day.caloriesMin, day.caloriesMax)}
-                </Text>
+                <NutritionText
+                  kind="calories"
+                  value={day.calories}
+                  min={day.caloriesMin}
+                  max={day.caloriesMax}
+                  style={styles.historyCalories}
+                  adjustsFontSizeToFit
+                  numberOfLines={1}
+                />
               </Pressable>
             );
           })
@@ -115,14 +124,24 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginBottom: 4,
   },
+  historyCopy: {
+    flex: 1,
+    gap: 2,
+  },
   historyMeta: {
     color: '#6B7280',
     fontSize: 13,
+  },
+  rangeHint: {
+    color: '#92400E',
+    fontSize: 11,
+    fontWeight: '600',
   },
   historyCalories: {
     fontSize: 16,
     fontWeight: '700',
     color: '#059669',
+    maxWidth: 120,
   },
   emptyHistory: {
     backgroundColor: '#F3F4F6',

@@ -3,9 +3,13 @@ export interface NutritionBounds {
   max: number | null;
 }
 
-export function isNutritionRange(min: number | null, max: number | null, point: number) {
+export function hasNutritionRange(min: number | null, max: number | null) {
   if (min == null || max == null) return false;
-  return Math.round(min) !== Math.round(max) && Math.round(min) !== Math.round(point);
+  return Math.round(min) !== Math.round(max);
+}
+
+export function isNutritionRange(min: number | null, max: number | null, point: number) {
+  return hasNutritionRange(min, max);
 }
 
 export function formatNutritionAmount(
@@ -80,22 +84,48 @@ export function exactNutrition(values: {
 }
 
 export function formatMacroLine(entry: {
+  calories?: number;
+  caloriesMin?: number | null;
+  caloriesMax?: number | null;
   protein: number;
   carbs: number;
   fat: number;
-  proteinMin: number | null;
-  proteinMax: number | null;
-  carbsMin: number | null;
-  carbsMax: number | null;
-  fatMin: number | null;
-  fatMax: number | null;
+  proteinMin?: number | null;
+  proteinMax?: number | null;
+  carbsMin?: number | null;
+  carbsMax?: number | null;
+  fatMin?: number | null;
+  fatMax?: number | null;
 }) {
-  const protein = formatMacro(
-    entry.protein,
-    entry.proteinMin ?? entry.protein,
-    entry.proteinMax ?? entry.protein,
-  );
-  const carbs = formatMacro(entry.carbs, entry.carbsMin ?? entry.carbs, entry.carbsMax ?? entry.carbs);
-  const fat = formatMacro(entry.fat, entry.fatMin ?? entry.fat, entry.fatMax ?? entry.fat);
-  return `P ${protein} · C ${carbs} · F ${fat}`;
+  const parts = [
+    entry.calories != null
+      ? formatCalories(
+          entry.calories,
+          entry.caloriesMin ?? entry.calories,
+          entry.caloriesMax ?? entry.calories,
+        )
+      : null,
+    `P ${formatMacro(entry.protein, entry.proteinMin ?? entry.protein, entry.proteinMax ?? entry.protein)}`,
+    `C ${formatMacro(entry.carbs, entry.carbsMin ?? entry.carbs, entry.carbsMax ?? entry.carbs)}`,
+    `F ${formatMacro(entry.fat, entry.fatMin ?? entry.fat, entry.fatMax ?? entry.fat)}`,
+  ].filter(Boolean);
+
+  return parts.join(' · ');
+}
+
+export function formatFullNutrition(entry: {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  caloriesMin?: number | null;
+  caloriesMax?: number | null;
+  proteinMin?: number | null;
+  proteinMax?: number | null;
+  carbsMin?: number | null;
+  carbsMax?: number | null;
+  fatMin?: number | null;
+  fatMax?: number | null;
+}) {
+  return formatMacroLine(entry);
 }

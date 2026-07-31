@@ -35,6 +35,14 @@ interface FoodContextValue {
       protein: number;
       carbs: number;
       fat: number;
+      caloriesMin: number;
+      caloriesMax: number;
+      proteinMin: number;
+      proteinMax: number;
+      carbsMin: number;
+      carbsMax: number;
+      fatMin: number;
+      fatMax: number;
     },
   ) => Promise<void>;
   removeEntry: (id: number) => Promise<void>;
@@ -154,6 +162,14 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
         protein: number;
         carbs: number;
         fat: number;
+        caloriesMin: number;
+        caloriesMax: number;
+        proteinMin: number;
+        proteinMax: number;
+        carbsMin: number;
+        carbsMax: number;
+        fatMin: number;
+        fatMax: number;
       },
     ) => {
       await updateFoodEntry(id, entry);

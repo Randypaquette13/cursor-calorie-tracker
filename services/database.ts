@@ -367,6 +367,14 @@ export async function updateFoodEntry(
     protein: number;
     carbs: number;
     fat: number;
+    caloriesMin: number;
+    caloriesMax: number;
+    proteinMin: number;
+    proteinMax: number;
+    carbsMin: number;
+    carbsMax: number;
+    fatMin: number;
+    fatMax: number;
   },
 ) {
   const db = await ensureDb();
@@ -383,14 +391,14 @@ export async function updateFoodEntry(
       entry.protein,
       entry.carbs,
       entry.fat,
-      entry.calories,
-      entry.calories,
-      entry.protein,
-      entry.protein,
-      entry.carbs,
-      entry.carbs,
-      entry.fat,
-      entry.fat,
+      entry.caloriesMin,
+      entry.caloriesMax,
+      entry.proteinMin,
+      entry.proteinMax,
+      entry.carbsMin,
+      entry.carbsMax,
+      entry.fatMin,
+      entry.fatMax,
       id,
     ],
   );

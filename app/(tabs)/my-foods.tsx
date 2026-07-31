@@ -5,10 +5,24 @@ import { SavedFoodModal } from '@/components/SavedFoodModal';
 import { Text } from '@/components/Themed';
 import { useSavedFoods } from '@/context/SavedFoodsContext';
 import type { SavedFood } from '@/types/food';
+import { formatFullNutrition } from '@/utils/nutrition';
 
 function formatNutrition(food: SavedFood) {
   if (food.calories == null) return null;
-  return `${Math.round(food.calories)} cal · P ${Math.round(food.protein ?? 0)}g · C ${Math.round(food.carbs ?? 0)}g · F ${Math.round(food.fat ?? 0)}g`;
+  return formatFullNutrition({
+    calories: food.calories,
+    protein: food.protein ?? 0,
+    carbs: food.carbs ?? 0,
+    fat: food.fat ?? 0,
+    caloriesMin: food.calories,
+    caloriesMax: food.calories,
+    proteinMin: food.protein ?? 0,
+    proteinMax: food.protein ?? 0,
+    carbsMin: food.carbs ?? 0,
+    carbsMax: food.carbs ?? 0,
+    fatMin: food.fat ?? 0,
+    fatMax: food.fat ?? 0,
+  });
 }
 
 export default function MyFoodsScreen() {

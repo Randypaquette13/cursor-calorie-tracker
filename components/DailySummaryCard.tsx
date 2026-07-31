@@ -1,8 +1,9 @@
 import { StyleSheet, View } from 'react-native';
 
+import { NutritionText } from '@/components/NutritionText';
 import { Text } from '@/components/Themed';
 import type { DailySummary } from '@/types/food';
-import { formatCalories, formatMacro } from '@/utils/nutrition';
+import { hasNutritionRange } from '@/utils/nutrition';
 
 interface DailySummaryCardProps {
   summary: DailySummary;
@@ -10,12 +11,20 @@ interface DailySummaryCardProps {
 }
 
 export function DailySummaryCard({ summary, title = "Today's totals" }: DailySummaryCardProps) {
+  const caloriesAreRange = hasNutritionRange(summary.caloriesMin, summary.caloriesMax);
+
   return (
     <View style={styles.card}>
       <Text style={styles.title}>{title}</Text>
-      <Text style={styles.calories}>
-        {formatCalories(summary.calories, summary.caloriesMin, summary.caloriesMax)}
-      </Text>
+      <NutritionText
+        kind="calories"
+        value={summary.calories}
+        min={summary.caloriesMin}
+        max={summary.caloriesMax}
+        style={[styles.calories, caloriesAreRange && styles.caloriesRange]}
+        adjustsFontSizeToFit
+        numberOfLines={1}
+      />
       <View style={styles.macros}>
         <Macro
           label="Protein"
@@ -31,7 +40,10 @@ export function DailySummaryCard({ summary, title = "Today's totals" }: DailySum
         />
         <Macro label="Fat" value={summary.fat} min={summary.fatMin} max={summary.fatMax} />
       </View>
-      <Text style={styles.meta}>{summary.entryCount} entries logged</Text>
+      <Text style={styles.meta}>
+        {summary.entryCount} entries logged
+        {caloriesAreRange ? ' · estimates shown as ranges' : ''}
+      </Text>
     </View>
   );
 }
@@ -47,10 +59,20 @@ function Macro({
   min: number;
   max: number;
 }) {
+  const isRange = hasNutritionRange(min, max);
+
   return (
     <View style={styles.macroItem}>
       <Text style={styles.macroLabel}>{label}</Text>
-      <Text style={styles.macroValue}>{formatMacro(value, min, max)}</Text>
+      <NutritionText
+        kind="macro"
+        value={value}
+        min={min}
+        max={max}
+        style={[styles.macroValue, isRange && styles.macroValueRange]}
+        adjustsFontSizeToFit
+        numberOfLines={1}
+      />
     </View>
   );
 }
@@ -74,6 +96,9 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontWeight: '700',
   },
+  caloriesRange: {
+    fontSize: 34,
+  },
   macros: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -94,6 +119,9 @@ const styles = StyleSheet.create({
     color: '#F9FAFB',
     fontSize: 18,
     fontWeight: '600',
+  },
+  macroValueRange: {
+    fontSize: 15,
   },
   meta: {
     color: '#6B7280',
