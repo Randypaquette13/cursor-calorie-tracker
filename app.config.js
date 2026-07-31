@@ -22,7 +22,7 @@ module.exports = {
     plugins: isEasBuild ? [...base.expo.plugins, ...easOnlyPlugins] : base.expo.plugins,
     extra: {
       ...base.expo.extra,
-      buildVersion: '2026-07-31-range-fallback-fix',
+      buildVersion: '2026-07-31-weigh-based-ranges',
     },
   },
 };

@@ -1,4 +1,4 @@
-import { isVaguePortion } from '@/utils/vaguePortion';
+import { getPortionSpread } from '@/utils/vaguePortion';
 
 export interface NutritionBounds {
   min: number | null;
@@ -62,7 +62,8 @@ export function nutritionFieldFromRecord(record: Record<string, unknown>, base: 
   return normalizeNutritionField(record[base]);
 }
 
-export function applyVagueRangeFallback<T extends {
+export function applyPortionRanges<T extends {
+  name: string;
   calories: number;
   protein: number;
   carbs: number;
@@ -76,15 +77,21 @@ export function applyVagueRangeFallback<T extends {
   fatMin: number;
   fatMax: number;
 }>(item: T, input: string): T {
-  if (!isVaguePortion(input)) {
+  const spread = getPortionSpread(item.name, input);
+  if (spread === 0) {
     return item;
   }
 
   const maybeExpand = (point: number, min: number, max: number) => {
     if (hasNutritionRange(min, max)) {
+      const currentHalfSpan = (max - min) / 2;
+      const targetHalfSpan = point * spread;
+      if (targetHalfSpan > currentHalfSpan) {
+        return expandExactRange(point, spread);
+      }
       return { point, min, max };
     }
-    return expandExactRange(point);
+    return expandExactRange(point, spread);
   };
 
   const calories = maybeExpand(item.calories, item.caloriesMin, item.caloriesMax);
@@ -107,6 +114,14 @@ export function applyVagueRangeFallback<T extends {
     fatMin: fat.min,
     fatMax: fat.max,
   };
+}
+
+/** @deprecated Use applyPortionRanges */
+export function applyVagueRangeFallback<T extends Parameters<typeof applyPortionRanges>[0]>(
+  item: T,
+  input: string,
+): T {
+  return applyPortionRanges(item, input);
 }
 
 

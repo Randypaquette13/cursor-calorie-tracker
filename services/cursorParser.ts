@@ -1,13 +1,13 @@
 import * as SecureStore from 'expo-secure-store';
 
 import type { ParsedFoodResponse, ParsedFoodItem, MealType, SavedFood } from '@/types/food';
-import { applyVagueRangeFallback, nutritionFieldFromRecord } from '@/utils/nutrition';
+import { applyPortionRanges, nutritionFieldFromRecord } from '@/utils/nutrition';
 
 const API_BASE = 'https://api.cursor.com/v1';
 const AGENT_ID_KEY = 'cursor_parser_agent_id';
 const API_KEY_KEY = 'cursor_api_key';
 const PARSER_VERSION_KEY = 'cursor_parser_version';
-const PARSER_VERSION = '3';
+const PARSER_VERSION = '4';
 
 const SYSTEM_PROMPT = `You are a nutrition estimation assistant. Given a natural-language food description, estimate calories and macros.
 
@@ -28,8 +28,12 @@ Respond with ONLY valid JSON (no markdown, no commentary) in this exact shape:
 Rules:
 - Split multi-item meals into separate items when possible.
 - Infer mealType from words like breakfast/lunch/dinner/snack, otherwise null.
-- When the portion amount is clearly specified (e.g. "2 eggs", "1 cup rice", "200g chicken"), set min and max to the same value.
-- When the portion is vague or unspecified (e.g. "some rice", "a handful of nuts", "a bowl of pasta", "a bit of cheese"), return a range with min lower than max to reflect uncertainty. Typical spread is about 25-50% between min and max unless context suggests tighter or wider bounds.
+- WEIGHED portions (grams, oz, lb, kg explicitly stated for that item): set min and max equal or within ~3% — the user measured mass.
+- WEIGHED but COMPOSITE/HOMEMADE (e.g. "200g of my chili", "150g homemade curry"): use a small range (~10%) because ingredient ratios are uncertain even when total weight is known.
+- NOT WEIGHED: default to a range with min lower than max. This includes cups, bowls, plates, "some", "a serving", restaurant portions, and any item without a scale weight.
+- Count-based items without weight (e.g. "2 eggs"): small range (~10%) is OK.
+- Volume measures without weight (cups, tbsp): moderate range (~15-25%).
+- Vague amounts ("some rice", "handful of nuts"): wider range (~25-40%).
 - All min/max values must be numbers with min <= max.
 - When the user mentions a saved food by name (exact or close match), use that food's description and known nutrition instead of guessing; use exact values (min = max) when saved nutrition is known.`;
 
@@ -173,6 +177,28 @@ function normalizeItem(item: unknown): ParsedFoodItem {
   };
 }
 
+function usesKnownSavedFood(item: ParsedFoodItem, input: string, savedFoods: SavedFood[]) {
+  const lowerInput = input.toLowerCase();
+  const lowerItem = item.name.toLowerCase();
+
+  return savedFoods.some((food) => {
+    if (food.calories == null) return false;
+    const name = food.name.trim().toLowerCase();
+    return lowerInput.includes(name) || lowerItem.includes(name) || name.includes(lowerItem);
+  });
+}
+
+function finalizeParsedItem(
+  item: ParsedFoodItem,
+  input: string,
+  savedFoods: SavedFood[],
+): ParsedFoodItem {
+  if (usesKnownSavedFood(item, input, savedFoods)) {
+    return item;
+  }
+  return applyPortionRanges(item, input);
+}
+
 export async function parseNaturalLanguage(
   input: string,
   savedFoods: SavedFood[] = [],
@@ -195,6 +221,6 @@ export async function parseNaturalLanguage(
   const resultText = await waitForRun(agentId, runData.run.id, apiKey);
   const parsed = extractJson(resultText);
   return {
-    items: parsed.items.map((item) => applyVagueRangeFallback(item, input)),
+    items: parsed.items.map((item) => finalizeParsedItem(item, input, savedFoods)),
   };
 }
