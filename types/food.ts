@@ -95,3 +95,17 @@ export interface SavedFood {
   createdAt: string;
   updatedAt: string;
 }
+
+export type ParseJobStatus = 'queued' | 'running' | 'completed' | 'failed';
+
+export interface ParseJob {
+  id: number;
+  date: string;
+  rawInput: string;
+  status: ParseJobStatus;
+  agentId: string | null;
+  runId: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}

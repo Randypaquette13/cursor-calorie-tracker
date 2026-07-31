@@ -1,10 +1,18 @@
 import * as SQLite from 'expo-sqlite';
 
-import type { DailySummary, FoodEntry, FoodEntryInput, MealType, SavedFood } from '@/types/food';
+import type {
+  DailySummary,
+  FoodEntry,
+  FoodEntryInput,
+  MealType,
+  ParseJob,
+  ParseJobStatus,
+  SavedFood,
+} from '@/types/food';
 import { createLogGroupId } from '@/utils/id';
 
 const DB_NAME = 'cursor_calorie_tracker.db';
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 const RANGE_COLUMNS = [
   ['calories_min', 'REAL'],
@@ -139,6 +147,19 @@ async function runMigrations() {
       id INTEGER PRIMARY KEY CHECK (id = 1),
       version INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS parse_jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      raw_input TEXT NOT NULL,
+      status TEXT NOT NULL,
+      agent_id TEXT,
+      run_id TEXT,
+      error_message TEXT,
+      created_at TEXT NOT NULL,
+      completed_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_parse_jobs_date ON parse_jobs(date);
+    CREATE INDEX IF NOT EXISTS idx_parse_jobs_status ON parse_jobs(status);
   `);
 
   await ensureColumn(db, 'food_entries', 'log_group_id', 'TEXT');
@@ -497,4 +518,107 @@ export async function updateSavedFood(
 export async function deleteSavedFood(id: number) {
   const db = await ensureDb();
   await db.runAsync(`DELETE FROM saved_foods WHERE id = ?`, [id]);
+}
+
+function mapParseJobRow(row: Record<string, unknown>): ParseJob {
+  return {
+    id: row.id as number,
+    date: row.date as string,
+    rawInput: row.raw_input as string,
+    status: row.status as ParseJobStatus,
+    agentId: (row.agent_id as string | null) ?? null,
+    runId: (row.run_id as string | null) ?? null,
+    errorMessage: (row.error_message as string | null) ?? null,
+    createdAt: row.created_at as string,
+    completedAt: (row.completed_at as string | null) ?? null,
+  };
+}
+
+export async function insertParseJob(date: string, rawInput: string) {
+  const db = await ensureDb();
+  const createdAt = new Date().toISOString();
+  const result = await db.runAsync(
+    `INSERT INTO parse_jobs (date, raw_input, status, created_at)
+     VALUES (?, ?, 'queued', ?)`,
+    [date, rawInput, createdAt],
+  );
+
+  return {
+    id: result.lastInsertRowId,
+    date,
+    rawInput,
+    status: 'queued' as const,
+    agentId: null,
+    runId: null,
+    errorMessage: null,
+    createdAt,
+    completedAt: null,
+  } satisfies ParseJob;
+}
+
+export async function getDisplayParseJobs(date: string) {
+  const db = await ensureDb();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM parse_jobs
+     WHERE date = ? AND status IN ('queued', 'running', 'failed')
+     ORDER BY created_at ASC, id ASC`,
+    [date],
+  );
+  return rows.map(mapParseJobRow);
+}
+
+export async function getResumableParseJobs() {
+  const db = await ensureDb();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM parse_jobs
+     WHERE status IN ('queued', 'running')
+     ORDER BY created_at ASC, id ASC`,
+  );
+  return rows.map(mapParseJobRow);
+}
+
+export async function updateParseJob(
+  id: number,
+  updates: {
+    status?: ParseJobStatus;
+    agentId?: string | null;
+    runId?: string | null;
+    errorMessage?: string | null;
+    completedAt?: string | null;
+  },
+) {
+  const db = await ensureDb();
+  const fields: string[] = [];
+  const values: unknown[] = [];
+
+  if (updates.status !== undefined) {
+    fields.push('status = ?');
+    values.push(updates.status);
+  }
+  if (updates.agentId !== undefined) {
+    fields.push('agent_id = ?');
+    values.push(updates.agentId);
+  }
+  if (updates.runId !== undefined) {
+    fields.push('run_id = ?');
+    values.push(updates.runId);
+  }
+  if (updates.errorMessage !== undefined) {
+    fields.push('error_message = ?');
+    values.push(updates.errorMessage);
+  }
+  if (updates.completedAt !== undefined) {
+    fields.push('completed_at = ?');
+    values.push(updates.completedAt);
+  }
+
+  if (fields.length === 0) return;
+
+  values.push(id);
+  await db.runAsync(`UPDATE parse_jobs SET ${fields.join(', ')} WHERE id = ?`, values);
+}
+
+export async function deleteParseJob(id: number) {
+  const db = await ensureDb();
+  await db.runAsync(`DELETE FROM parse_jobs WHERE id = ?`, [id]);
 }

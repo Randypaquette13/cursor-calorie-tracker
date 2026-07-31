@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -16,21 +17,32 @@ import { Text } from '@/components/Themed';
 
 interface AddFoodModalProps {
   visible: boolean;
-  loading?: boolean;
   onClose: () => void;
   onSubmit: (text: string) => Promise<void>;
 }
 
-export function AddFoodModal({ visible, loading, onClose, onSubmit }: AddFoodModalProps) {
+export function AddFoodModal({ visible, onClose, onSubmit }: AddFoodModalProps) {
   const [text, setText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const insets = useSafeAreaInsets();
 
   const handleSubmit = async () => {
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
-    await onSubmit(trimmed);
-    setText('');
-    onClose();
+    if (!trimmed || submitting) return;
+
+    setSubmitting(true);
+    try {
+      await onSubmit(trimmed);
+      setText('');
+      onClose();
+    } catch (error) {
+      Alert.alert(
+        'Could not start parse',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -39,7 +51,7 @@ export function AddFoodModal({ visible, loading, onClose, onSubmit }: AddFoodMod
         style={styles.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
-        <Pressable style={styles.backdrop} onPress={() => !loading && onClose()} />
+        <Pressable style={styles.backdrop} onPress={() => !submitting && onClose()} />
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
           <ScrollView
             bounces={false}
@@ -49,7 +61,8 @@ export function AddFoodModal({ visible, loading, onClose, onSubmit }: AddFoodMod
             <Text style={styles.title}>Log food</Text>
             <Text style={styles.subtitle}>
               Describe what you ate, or use a name from My Foods (e.g. &quot;usual shake&quot;). Cursor
-              will estimate calories and macros.
+              will estimate calories and macros in the background — you can close the app while it
+              works.
             </Text>
             <TextInput
               style={styles.input}
@@ -58,20 +71,20 @@ export function AddFoodModal({ visible, loading, onClose, onSubmit }: AddFoodMod
               value={text}
               onChangeText={setText}
               multiline
-              editable={!loading}
+              editable={!submitting}
             />
             <View style={styles.actions}>
-              <Pressable style={styles.secondaryButton} onPress={onClose} disabled={loading}>
+              <Pressable style={styles.secondaryButton} onPress={onClose} disabled={submitting}>
                 <Text style={styles.secondaryText}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={[styles.primaryButton, loading && styles.disabledButton]}
+                style={[styles.primaryButton, submitting && styles.disabledButton]}
                 onPress={handleSubmit}
-                disabled={loading}>
-                {loading ? (
+                disabled={submitting}>
+                {submitting ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.primaryText}>Parse with Cursor</Text>
+                  <Text style={styles.primaryText}>Send to Cursor</Text>
                 )}
               </Pressable>
             </View>
