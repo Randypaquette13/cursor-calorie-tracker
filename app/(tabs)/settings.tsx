@@ -4,21 +4,17 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   TextInput,
   View,
 } from 'react-native';
 import Constants from 'expo-constants';
 
-import { JARED_MODE_STORES } from '@/config/jaredMode';
 import { Text } from '@/components/Themed';
 import { clearApiKey, getStoredApiKey, saveApiKey } from '@/services/cursorParser';
-import { getJaredModeEnabled, setJaredModeEnabled } from '@/services/jaredMode';
 
 export default function SettingsScreen() {
   const [apiKey, setApiKey] = useState('');
   const [saved, setSaved] = useState(false);
-  const [jaredMode, setJaredMode] = useState(false);
   const buildVersion =
     (Constants.expoConfig?.extra as { buildVersion?: string } | undefined)?.buildVersion ??
     'unknown';
@@ -30,7 +26,6 @@ export default function SettingsScreen() {
         setApiKey(existing);
         setSaved(true);
       }
-      setJaredMode(await getJaredModeEnabled());
     })();
   }, []);
 
@@ -49,11 +44,6 @@ export default function SettingsScreen() {
     await clearApiKey();
     setApiKey('');
     setSaved(false);
-  };
-
-  const handleJaredModeToggle = async (enabled: boolean) => {
-    setJaredMode(enabled);
-    await setJaredModeEnabled(enabled);
   };
 
   return (
@@ -87,33 +77,6 @@ export default function SettingsScreen() {
             <Text style={styles.secondaryText}>Clear</Text>
           </Pressable>
         </View>
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleCopy}>
-            <Text style={styles.cardTitle}>Jared mode</Text>
-            <Text style={styles.cardBody}>
-              Adds context about usual grocery stores when Cursor parses food. Helpful for
-              packaged items from Target or Lidl.
-            </Text>
-          </View>
-          <Switch
-            value={jaredMode}
-            onValueChange={handleJaredModeToggle}
-            trackColor={{ false: '#D1D5DB', true: '#6EE7B7' }}
-            thumbColor={jaredMode ? '#059669' : '#FFFFFF'}
-          />
-        </View>
-        {jaredMode ? (
-          <View style={styles.storeList}>
-            {JARED_MODE_STORES.map((store) => (
-              <Text key={store.id} style={styles.storeItem}>
-                {store.name} · {store.address}
-              </Text>
-            ))}
-          </View>
-        ) : null}
       </View>
 
       <View style={styles.card}>
@@ -169,27 +132,6 @@ const styles = StyleSheet.create({
   cardBody: {
     color: '#6B7280',
     lineHeight: 21,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  toggleCopy: {
-    flex: 1,
-    gap: 10,
-  },
-  storeList: {
-    marginTop: 4,
-    gap: 6,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  storeItem: {
-    color: '#374151',
-    fontSize: 14,
-    lineHeight: 20,
   },
   input: {
     borderWidth: 1,
