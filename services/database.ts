@@ -5,6 +5,7 @@ import type { DailySummary, FoodEntry, FoodSource, MealType, SavedFood } from '@
 const DB_NAME = 'cursor_calorie_tracker.db';
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+let initPromise: Promise<void> | null = null;
 
 async function getDb() {
   if (!dbPromise) {
@@ -13,7 +14,7 @@ async function getDb() {
   return dbPromise;
 }
 
-export async function initDatabase() {
+async function runMigrations() {
   const db = await getDb();
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
@@ -48,6 +49,18 @@ export async function initDatabase() {
   `);
 }
 
+export async function initDatabase() {
+  if (!initPromise) {
+    initPromise = runMigrations();
+  }
+  return initPromise;
+}
+
+async function ensureDb() {
+  await initDatabase();
+  return getDb();
+}
+
 function mapRow(row: Record<string, unknown>): FoodEntry {
   return {
     id: row.id as number,
@@ -77,7 +90,7 @@ export async function insertFoodEntry(entry: {
   rawInput?: string | null;
   barcode?: string | null;
 }) {
-  const db = await getDb();
+  const db = await ensureDb();
   const createdAt = new Date().toISOString();
   const result = await db.runAsync(
     `INSERT INTO food_entries
@@ -108,7 +121,7 @@ export async function insertFoodEntry(entry: {
 }
 
 export async function getEntriesForDate(date: string) {
-  const db = await getDb();
+  const db = await ensureDb();
   const rows = await db.getAllAsync<Record<string, unknown>>(
     `SELECT * FROM food_entries WHERE date = ? ORDER BY created_at ASC`,
     [date],
@@ -117,7 +130,7 @@ export async function getEntriesForDate(date: string) {
 }
 
 export async function getDailySummary(date: string): Promise<DailySummary> {
-  const db = await getDb();
+  const db = await ensureDb();
   const row = await db.getFirstAsync<Record<string, unknown>>(
     `SELECT
       date,
@@ -147,7 +160,7 @@ export async function getDailySummary(date: string): Promise<DailySummary> {
 }
 
 export async function getHistorySummaries(limit = 90): Promise<DailySummary[]> {
-  const db = await getDb();
+  const db = await ensureDb();
   const rows = await db.getAllAsync<Record<string, unknown>>(
     `SELECT
       date,
@@ -174,7 +187,7 @@ export async function getHistorySummaries(limit = 90): Promise<DailySummary[]> {
 }
 
 export async function deleteFoodEntry(id: number) {
-  const db = await getDb();
+  const db = await ensureDb();
   await db.runAsync(`DELETE FROM food_entries WHERE id = ?`, [id]);
 }
 
@@ -193,7 +206,7 @@ function mapSavedFoodRow(row: Record<string, unknown>): SavedFood {
 }
 
 export async function getSavedFoods(): Promise<SavedFood[]> {
-  const db = await getDb();
+  const db = await ensureDb();
   const rows = await db.getAllAsync<Record<string, unknown>>(
     `SELECT * FROM saved_foods ORDER BY name COLLATE NOCASE ASC`,
   );
@@ -208,7 +221,7 @@ export async function insertSavedFood(entry: {
   carbs?: number | null;
   fat?: number | null;
 }) {
-  const db = await getDb();
+  const db = await ensureDb();
   const now = new Date().toISOString();
   const result = await db.runAsync(
     `INSERT INTO saved_foods (name, description, calories, protein, carbs, fat, created_at, updated_at)
@@ -249,7 +262,7 @@ export async function updateSavedFood(
     fat?: number | null;
   },
 ) {
-  const db = await getDb();
+  const db = await ensureDb();
   const now = new Date().toISOString();
   await db.runAsync(
     `UPDATE saved_foods
@@ -269,6 +282,6 @@ export async function updateSavedFood(
 }
 
 export async function deleteSavedFood(id: number) {
-  const db = await getDb();
+  const db = await ensureDb();
   await db.runAsync(`DELETE FROM saved_foods WHERE id = ?`, [id]);
 }
