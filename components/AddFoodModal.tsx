@@ -48,7 +48,8 @@ export function AddFoodModal({ visible, loading, onClose, onSubmit }: AddFoodMod
             contentContainerStyle={styles.sheetContent}>
             <Text style={styles.title}>Log food</Text>
             <Text style={styles.subtitle}>
-              Describe what you ate in the text box. Cursor will estimate calories and macros.
+              Describe what you ate, or use a name from My Foods (e.g. &quot;usual shake&quot;). Cursor
+              will estimate calories and macros.
             </Text>
             <TextInput
               style={styles.input}
