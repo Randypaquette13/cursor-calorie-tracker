@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { SummaryNutritionValue } from '@/components/SummaryNutritionValue';
+import { NutritionEstimateWithRange } from '@/components/NutritionEstimateWithRange';
 import { Text } from '@/components/Themed';
 import type { DailySummary } from '@/types/food';
 
@@ -13,7 +13,7 @@ export function DailySummaryCard({ summary, title = "Today's totals" }: DailySum
   return (
     <View style={styles.card}>
       <Text style={styles.title}>{title}</Text>
-      <SummaryNutritionValue
+      <NutritionEstimateWithRange
         kind="calories"
         value={summary.calories}
         min={summary.caloriesMin}
@@ -55,7 +55,7 @@ function Macro({
   return (
     <View style={styles.macroItem}>
       <Text style={styles.macroLabel}>{label}</Text>
-      <SummaryNutritionValue
+      <NutritionEstimateWithRange
         kind="macro"
         value={value}
         min={min}
