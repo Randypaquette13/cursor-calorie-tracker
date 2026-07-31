@@ -1,5 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
+import { formatJaredModeStoresForPrompt } from '@/config/jaredMode';
+import { getJaredModeEnabled } from '@/services/jaredMode';
 import type { ParsedFoodResponse, ParsedFoodItem, MealType, SavedFood } from '@/types/food';
 import { applyPortionRanges, nutritionFieldFromRecord } from '@/utils/nutrition';
 
@@ -60,12 +62,22 @@ function formatSavedFoodsForPrompt(savedFoods: SavedFood[]): string {
   return `\n\nThe user has saved these personal foods. When their input matches or refers to a saved food name, use that food's description and known nutrition (when provided) instead of guessing:\n${lines.join('\n')}`;
 }
 
-function buildInitialParsePrompt(input: string, savedFoods: SavedFood[]): string {
-  return `${SYSTEM_PROMPT}${formatSavedFoodsForPrompt(savedFoods)}\n\nFood description: ${input}`;
+function buildInitialParsePrompt(
+  input: string,
+  savedFoods: SavedFood[],
+  jaredModeEnabled: boolean,
+): string {
+  const jaredContext = jaredModeEnabled ? formatJaredModeStoresForPrompt() : '';
+  return `${SYSTEM_PROMPT}${jaredContext}${formatSavedFoodsForPrompt(savedFoods)}\n\nFood description: ${input}`;
 }
 
-function buildFollowUpParsePrompt(input: string, savedFoods: SavedFood[]): string {
-  return `${formatSavedFoodsForPrompt(savedFoods)}\n\nFood description: ${input}\n\n${FOLLOW_UP_SUFFIX}`;
+function buildFollowUpParsePrompt(
+  input: string,
+  savedFoods: SavedFood[],
+  jaredModeEnabled: boolean,
+): string {
+  const jaredContext = jaredModeEnabled ? formatJaredModeStoresForPrompt() : '';
+  return `${jaredContext}${formatSavedFoodsForPrompt(savedFoods)}\n\nFood description: ${input}\n\n${FOLLOW_UP_SUFFIX}`;
 }
 
 export async function getStoredApiKey() {
@@ -139,9 +151,10 @@ export async function startParseRun(input: string, savedFoods: SavedFood[] = [])
   }
 
   const { agentId, isNewAgent } = await getOrCreateAgent(apiKey);
+  const jaredModeEnabled = await getJaredModeEnabled();
   const promptText = isNewAgent
-    ? buildInitialParsePrompt(input, savedFoods)
-    : buildFollowUpParsePrompt(input, savedFoods);
+    ? buildInitialParsePrompt(input, savedFoods, jaredModeEnabled)
+    : buildFollowUpParsePrompt(input, savedFoods, jaredModeEnabled);
 
   const runData = (await cursorFetch(`/agents/${agentId}/runs`, apiKey, {
     method: 'POST',
