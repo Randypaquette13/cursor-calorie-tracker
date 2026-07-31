@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/Themed';
 import type { DailySummary } from '@/types/food';
+import { formatCalories, formatMacro } from '@/utils/nutrition';
 
 interface DailySummaryCardProps {
   summary: DailySummary;
@@ -12,25 +13,44 @@ export function DailySummaryCard({ summary, title = "Today's totals" }: DailySum
   return (
     <View style={styles.card}>
       <Text style={styles.title}>{title}</Text>
-      <Text style={styles.calories}>{Math.round(summary.calories)} kcal</Text>
+      <Text style={styles.calories}>
+        {formatCalories(summary.calories, summary.caloriesMin, summary.caloriesMax)}
+      </Text>
       <View style={styles.macros}>
-        <Macro label="Protein" value={summary.protein} unit="g" />
-        <Macro label="Carbs" value={summary.carbs} unit="g" />
-        <Macro label="Fat" value={summary.fat} unit="g" />
+        <Macro
+          label="Protein"
+          value={summary.protein}
+          min={summary.proteinMin}
+          max={summary.proteinMax}
+        />
+        <Macro
+          label="Carbs"
+          value={summary.carbs}
+          min={summary.carbsMin}
+          max={summary.carbsMax}
+        />
+        <Macro label="Fat" value={summary.fat} min={summary.fatMin} max={summary.fatMax} />
       </View>
       <Text style={styles.meta}>{summary.entryCount} entries logged</Text>
     </View>
   );
 }
 
-function Macro({ label, value, unit }: { label: string; value: number; unit: string }) {
+function Macro({
+  label,
+  value,
+  min,
+  max,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+}) {
   return (
     <View style={styles.macroItem}>
       <Text style={styles.macroLabel}>{label}</Text>
-      <Text style={styles.macroValue}>
-        {Math.round(value)}
-        {unit}
-      </Text>
+      <Text style={styles.macroValue}>{formatMacro(value, min, max)}</Text>
     </View>
   );
 }

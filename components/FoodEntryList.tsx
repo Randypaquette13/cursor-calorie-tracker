@@ -6,7 +6,8 @@ import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { EditFoodEntryModal } from '@/components/EditFoodEntryModal';
 import { Text } from '@/components/Themed';
 import type { FoodEntry } from '@/types/food';
-import { groupFoodEntries, sumGroupCalories, sumGroupMacros } from '@/utils/foodGroups';
+import { groupFoodEntries, sumGroupNutrition } from '@/utils/foodGroups';
+import { formatCalories, formatMacroLine } from '@/utils/nutrition';
 
 interface FoodEntryListProps {
   entries: FoodEntry[];
@@ -94,8 +95,7 @@ export function FoodEntryList({ entries, onDelete, onEdit }: FoodEntryListProps)
     <>
       <View style={styles.list}>
         {groups.map((group) => {
-          const groupCalories = sumGroupCalories(group.entries);
-          const groupMacros = sumGroupMacros(group.entries);
+          const totals = sumGroupNutrition(group.entries);
           const loggedAt = formatLoggedTime(group.createdAt);
 
           if (group.isMulti) {
@@ -103,7 +103,9 @@ export function FoodEntryList({ entries, onDelete, onEdit }: FoodEntryListProps)
               <View key={group.id} style={styles.groupCard}>
                 <View style={styles.groupHeader}>
                   <Text style={styles.groupTime}>{loggedAt}</Text>
-                  <Text style={styles.groupCalories}>{Math.round(groupCalories)} kcal</Text>
+                  <Text style={styles.groupCalories}>
+                    {formatCalories(totals.calories, totals.caloriesMin, totals.caloriesMax)}
+                  </Text>
                 </View>
                 <View style={styles.groupItems}>
                   {group.entries.map((entry, index) => (
@@ -116,8 +118,8 @@ export function FoodEntryList({ entries, onDelete, onEdit }: FoodEntryListProps)
                       <View style={styles.groupItemContent}>
                         <Text style={styles.itemName}>{entry.name}</Text>
                         <Text style={styles.groupItemMeta}>
-                          {Math.round(entry.calories)} kcal · P {Math.round(entry.protein)}g · C{' '}
-                          {Math.round(entry.carbs)}g · F {Math.round(entry.fat)}g
+                          {formatCalories(entry.calories, entry.caloriesMin, entry.caloriesMax)} ·{' '}
+                          {formatMacroLine(entry)}
                         </Text>
                       </View>
                       <EntryMenuButton
@@ -129,10 +131,7 @@ export function FoodEntryList({ entries, onDelete, onEdit }: FoodEntryListProps)
                     </View>
                   ))}
                 </View>
-                <Text style={styles.groupFooter}>
-                  Total · P {Math.round(groupMacros.protein)}g · C {Math.round(groupMacros.carbs)}g
-                  · F {Math.round(groupMacros.fat)}g
-                </Text>
+                <Text style={styles.groupFooter}>Total · {formatMacroLine(totals)}</Text>
               </View>
             );
           }
@@ -143,7 +142,9 @@ export function FoodEntryList({ entries, onDelete, onEdit }: FoodEntryListProps)
               <View style={styles.itemTopRow}>
                 <View style={styles.itemMain}>
                   <Text style={styles.itemName}>{entry.name}</Text>
-                  <Text style={styles.itemCaloriesInline}>{Math.round(entry.calories)} kcal</Text>
+                  <Text style={styles.itemCaloriesInline}>
+                    {formatCalories(entry.calories, entry.caloriesMin, entry.caloriesMax)}
+                  </Text>
                 </View>
                 <EntryMenuButton
                   entry={entry}
@@ -154,9 +155,7 @@ export function FoodEntryList({ entries, onDelete, onEdit }: FoodEntryListProps)
               </View>
               <Text style={styles.itemMeta}>
                 {loggedAt}
-                {entry.mealType !== 'unknown' ? ` · ${entry.mealType}` : ''} · P{' '}
-                {Math.round(entry.protein)}g · C {Math.round(entry.carbs)}g · F{' '}
-                {Math.round(entry.fat)}g
+                {entry.mealType !== 'unknown' ? ` · ${entry.mealType}` : ''} · {formatMacroLine(entry)}
               </Text>
               <Text style={styles.itemSource}>
                 {entry.source === 'barcode' ? `Barcode ${entry.barcode}` : 'Natural language'}

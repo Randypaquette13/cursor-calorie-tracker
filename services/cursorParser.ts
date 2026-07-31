@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
 import type { ParsedFoodResponse, ParsedFoodItem, MealType, SavedFood } from '@/types/food';
+import { normalizeNutritionField } from '@/utils/nutrition';
 
 const API_BASE = 'https://api.cursor.com/v1';
 const AGENT_ID_KEY = 'cursor_parser_agent_id';
@@ -13,10 +14,10 @@ Respond with ONLY valid JSON (no markdown, no commentary) in this exact shape:
   "items": [
     {
       "name": "string",
-      "calories": number,
-      "protein": number,
-      "carbs": number,
-      "fat": number,
+      "calories": { "min": number, "max": number },
+      "protein": { "min": number, "max": number },
+      "carbs": { "min": number, "max": number },
+      "fat": { "min": number, "max": number },
       "mealType": "breakfast" | "lunch" | "dinner" | "snack" | null
     }
   ]
@@ -25,9 +26,10 @@ Respond with ONLY valid JSON (no markdown, no commentary) in this exact shape:
 Rules:
 - Split multi-item meals into separate items when possible.
 - Infer mealType from words like breakfast/lunch/dinner/snack, otherwise null.
-- Use reasonable portion estimates when amounts are vague.
-- All macro and calorie values must be numbers.
-- When the user mentions a saved food by name (exact or close match), use that food's description and known nutrition instead of guessing.`;
+- When the portion amount is clearly specified (e.g. "2 eggs", "1 cup rice", "200g chicken"), set min and max to the same value.
+- When the portion is vague or unspecified (e.g. "some rice", "a handful of nuts", "a bowl of pasta", "a bit of cheese"), return a range with min lower than max to reflect uncertainty. Typical spread is about 25-50% between min and max unless context suggests tighter or wider bounds.
+- All min/max values must be numbers with min <= max.
+- When the user mentions a saved food by name (exact or close match), use that food's description and known nutrition instead of guessing; use exact values (min = max) when saved nutrition is known.`;
 
 function formatSavedFoodsForPrompt(savedFoods: SavedFood[]): string {
   if (savedFoods.length === 0) return '';
@@ -135,14 +137,28 @@ function extractJson(text: string): ParsedFoodResponse {
   };
 }
 
-function normalizeItem(item: ParsedFoodItem): ParsedFoodItem {
+function normalizeItem(item: unknown): ParsedFoodItem {
+  const record = (item ?? {}) as Record<string, unknown>;
+  const calories = normalizeNutritionField(record.calories);
+  const protein = normalizeNutritionField(record.protein);
+  const carbs = normalizeNutritionField(record.carbs);
+  const fat = normalizeNutritionField(record.fat);
+
   return {
-    name: item.name?.trim() || 'Unknown food',
-    calories: Number(item.calories) || 0,
-    protein: Number(item.protein) || 0,
-    carbs: Number(item.carbs) || 0,
-    fat: Number(item.fat) || 0,
-    mealType: (item.mealType as MealType | null | undefined) ?? null,
+    name: String(record.name ?? '').trim() || 'Unknown food',
+    calories: calories.point,
+    protein: protein.point,
+    carbs: carbs.point,
+    fat: fat.point,
+    caloriesMin: calories.min,
+    caloriesMax: calories.max,
+    proteinMin: protein.min,
+    proteinMax: protein.max,
+    carbsMin: carbs.min,
+    carbsMax: carbs.max,
+    fatMin: fat.min,
+    fatMax: fat.max,
+    mealType: (record.mealType as MealType | null | undefined) ?? null,
   };
 }
 

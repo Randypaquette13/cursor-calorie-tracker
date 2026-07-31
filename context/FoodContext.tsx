@@ -53,6 +53,14 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
     protein: 0,
     carbs: 0,
     fat: 0,
+    caloriesMin: 0,
+    caloriesMax: 0,
+    proteinMin: 0,
+    proteinMax: 0,
+    carbsMin: 0,
+    carbsMax: 0,
+    fatMin: 0,
+    fatMax: 0,
     entryCount: 0,
   });
   const [historyEntries, setHistoryEntries] = useState<FoodEntry[]>([]);
@@ -62,6 +70,14 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
     protein: 0,
     carbs: 0,
     fat: 0,
+    caloriesMin: 0,
+    caloriesMax: 0,
+    proteinMin: 0,
+    proteinMax: 0,
+    carbsMin: 0,
+    carbsMax: 0,
+    fatMin: 0,
+    fatMax: 0,
     entryCount: 0,
   });
   const [history, setHistory] = useState<DailySummary[]>([]);

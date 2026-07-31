@@ -11,6 +11,14 @@ export interface FoodEntry {
   protein: number;
   carbs: number;
   fat: number;
+  caloriesMin: number | null;
+  caloriesMax: number | null;
+  proteinMin: number | null;
+  proteinMax: number | null;
+  carbsMin: number | null;
+  carbsMax: number | null;
+  fatMin: number | null;
+  fatMax: number | null;
   source: FoodSource;
   rawInput: string | null;
   barcode: string | null;
@@ -25,6 +33,14 @@ export interface FoodEntryInput {
   protein: number;
   carbs: number;
   fat: number;
+  caloriesMin?: number | null;
+  caloriesMax?: number | null;
+  proteinMin?: number | null;
+  proteinMax?: number | null;
+  carbsMin?: number | null;
+  carbsMax?: number | null;
+  fatMin?: number | null;
+  fatMax?: number | null;
   source: FoodSource;
   rawInput?: string | null;
   barcode?: string | null;
@@ -36,6 +52,14 @@ export interface DailySummary {
   protein: number;
   carbs: number;
   fat: number;
+  caloriesMin: number;
+  caloriesMax: number;
+  proteinMin: number;
+  proteinMax: number;
+  carbsMin: number;
+  carbsMax: number;
+  fatMin: number;
+  fatMax: number;
   entryCount: number;
 }
 
@@ -45,6 +69,14 @@ export interface ParsedFoodItem {
   protein: number;
   carbs: number;
   fat: number;
+  caloriesMin: number;
+  caloriesMax: number;
+  proteinMin: number;
+  proteinMax: number;
+  carbsMin: number;
+  carbsMax: number;
+  fatMin: number;
+  fatMax: number;
   mealType?: MealType | null;
 }
 

@@ -1,4 +1,5 @@
 import type { ParsedFoodItem } from '@/types/food';
+import { exactNutrition } from '@/utils/nutrition';
 
 interface OpenFoodFactsProduct {
   product_name?: string;
@@ -50,18 +51,20 @@ export async function lookupBarcode(barcode: string): Promise<ParsedFoodItem> {
 
   return {
     name,
-    calories: pickNumber(
-      product.nutriments?.['energy-kcal_serving'],
-      product.nutriments?.['energy-kcal_100g'],
-    ),
-    protein: pickNumber(
-      product.nutriments?.proteins_serving,
-      product.nutriments?.proteins_100g,
-    ),
-    carbs: pickNumber(
-      product.nutriments?.carbohydrates_serving,
-      product.nutriments?.carbohydrates_100g,
-    ),
-    fat: pickNumber(product.nutriments?.fat_serving, product.nutriments?.fat_100g),
+    ...exactNutrition({
+      calories: pickNumber(
+        product.nutriments?.['energy-kcal_serving'],
+        product.nutriments?.['energy-kcal_100g'],
+      ),
+      protein: pickNumber(
+        product.nutriments?.proteins_serving,
+        product.nutriments?.proteins_100g,
+      ),
+      carbs: pickNumber(
+        product.nutriments?.carbohydrates_serving,
+        product.nutriments?.carbohydrates_100g,
+      ),
+      fat: pickNumber(product.nutriments?.fat_serving, product.nutriments?.fat_100g),
+    }),
   };
 }

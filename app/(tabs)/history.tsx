@@ -6,6 +6,7 @@ import { DailySummaryCard } from '@/components/DailySummaryCard';
 import { FoodEntryList } from '@/components/FoodEntryList';
 import { Text } from '@/components/Themed';
 import { useFood } from '@/context/FoodContext';
+import { formatCalories, formatMacro } from '@/utils/nutrition';
 
 export default function HistoryScreen() {
   const {
@@ -50,11 +51,15 @@ export default function HistoryScreen() {
                     {day.date === today ? 'Today' : day.date}
                   </Text>
                   <Text style={styles.historyMeta}>
-                    {day.entryCount} entries · P {Math.round(day.protein)}g · C{' '}
-                    {Math.round(day.carbs)}g · F {Math.round(day.fat)}g
+                    {day.entryCount} entries · P{' '}
+                    {formatMacro(day.protein, day.proteinMin, day.proteinMax)} · C{' '}
+                    {formatMacro(day.carbs, day.carbsMin, day.carbsMax)} · F{' '}
+                    {formatMacro(day.fat, day.fatMin, day.fatMax)}
                   </Text>
                 </View>
-                <Text style={styles.historyCalories}>{Math.round(day.calories)} kcal</Text>
+                <Text style={styles.historyCalories}>
+                  {formatCalories(day.calories, day.caloriesMin, day.caloriesMax)}
+                </Text>
               </Pressable>
             );
           })

@@ -7,6 +7,21 @@ export interface FoodLogGroup {
   isMulti: boolean;
 }
 
+export interface GroupNutritionTotals {
+  calories: number;
+  caloriesMin: number;
+  caloriesMax: number;
+  protein: number;
+  proteinMin: number;
+  proteinMax: number;
+  carbs: number;
+  carbsMin: number;
+  carbsMax: number;
+  fat: number;
+  fatMin: number;
+  fatMax: number;
+}
+
 export function groupFoodEntries(entries: FoodEntry[]): FoodLogGroup[] {
   const groups = new Map<string, FoodEntry[]>();
 
@@ -30,17 +45,35 @@ export function groupFoodEntries(entries: FoodEntry[]): FoodLogGroup[] {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export function sumGroupCalories(entries: FoodEntry[]) {
-  return entries.reduce((total, entry) => total + entry.calories, 0);
-}
-
-export function sumGroupMacros(entries: FoodEntry[]) {
-  return entries.reduce(
+export function sumGroupNutrition(entries: FoodEntry[]): GroupNutritionTotals {
+  return entries.reduce<GroupNutritionTotals>(
     (totals, entry) => ({
+      calories: totals.calories + entry.calories,
+      caloriesMin: totals.caloriesMin + (entry.caloriesMin ?? entry.calories),
+      caloriesMax: totals.caloriesMax + (entry.caloriesMax ?? entry.calories),
       protein: totals.protein + entry.protein,
+      proteinMin: totals.proteinMin + (entry.proteinMin ?? entry.protein),
+      proteinMax: totals.proteinMax + (entry.proteinMax ?? entry.protein),
       carbs: totals.carbs + entry.carbs,
+      carbsMin: totals.carbsMin + (entry.carbsMin ?? entry.carbs),
+      carbsMax: totals.carbsMax + (entry.carbsMax ?? entry.carbs),
       fat: totals.fat + entry.fat,
+      fatMin: totals.fatMin + (entry.fatMin ?? entry.fat),
+      fatMax: totals.fatMax + (entry.fatMax ?? entry.fat),
     }),
-    { protein: 0, carbs: 0, fat: 0 },
+    {
+      calories: 0,
+      caloriesMin: 0,
+      caloriesMax: 0,
+      protein: 0,
+      proteinMin: 0,
+      proteinMax: 0,
+      carbs: 0,
+      carbsMin: 0,
+      carbsMax: 0,
+      fat: 0,
+      fatMin: 0,
+      fatMax: 0,
+    },
   );
 }
