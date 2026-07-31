@@ -1,11 +1,13 @@
 import * as SecureStore from 'expo-secure-store';
 
 import type { ParsedFoodResponse, ParsedFoodItem, MealType, SavedFood } from '@/types/food';
-import { normalizeNutritionField } from '@/utils/nutrition';
+import { applyVagueRangeFallback, nutritionFieldFromRecord } from '@/utils/nutrition';
 
 const API_BASE = 'https://api.cursor.com/v1';
 const AGENT_ID_KEY = 'cursor_parser_agent_id';
 const API_KEY_KEY = 'cursor_api_key';
+const PARSER_VERSION_KEY = 'cursor_parser_version';
+const PARSER_VERSION = '3';
 
 const SYSTEM_PROMPT = `You are a nutrition estimation assistant. Given a natural-language food description, estimate calories and macros.
 
@@ -81,7 +83,16 @@ async function cursorFetch(path: string, apiKey: string, init?: RequestInit) {
   return response.json();
 }
 
+async function ensureParserVersion() {
+  const stored = await SecureStore.getItemAsync(PARSER_VERSION_KEY);
+  if (stored !== PARSER_VERSION) {
+    await SecureStore.deleteItemAsync(AGENT_ID_KEY);
+    await SecureStore.setItemAsync(PARSER_VERSION_KEY, PARSER_VERSION);
+  }
+}
+
 async function getOrCreateAgent(apiKey: string) {
+  await ensureParserVersion();
   const existing = await SecureStore.getItemAsync(AGENT_ID_KEY);
   if (existing) {
     return existing;
@@ -139,10 +150,10 @@ function extractJson(text: string): ParsedFoodResponse {
 
 function normalizeItem(item: unknown): ParsedFoodItem {
   const record = (item ?? {}) as Record<string, unknown>;
-  const calories = normalizeNutritionField(record.calories);
-  const protein = normalizeNutritionField(record.protein);
-  const carbs = normalizeNutritionField(record.carbs);
-  const fat = normalizeNutritionField(record.fat);
+  const calories = nutritionFieldFromRecord(record, 'calories');
+  const protein = nutritionFieldFromRecord(record, 'protein');
+  const carbs = nutritionFieldFromRecord(record, 'carbs');
+  const fat = nutritionFieldFromRecord(record, 'fat');
 
   return {
     name: String(record.name ?? '').trim() || 'Unknown food',
@@ -182,5 +193,8 @@ export async function parseNaturalLanguage(
   })) as { run: { id: string } };
 
   const resultText = await waitForRun(agentId, runData.run.id, apiKey);
-  return extractJson(resultText);
+  const parsed = extractJson(resultText);
+  return {
+    items: parsed.items.map((item) => applyVagueRangeFallback(item, input)),
+  };
 }

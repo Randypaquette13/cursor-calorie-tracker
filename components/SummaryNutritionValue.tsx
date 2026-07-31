@@ -45,8 +45,8 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   range: {
-    color: '#9CA3AF',
-    fontSize: 12,
+    color: '#D1D5DB',
+    fontSize: 13,
     fontWeight: '500',
   },
 });

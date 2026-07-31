@@ -87,7 +87,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   caloriesRange: {
-    color: '#6B7280',
+    color: '#D1D5DB',
+    fontSize: 14,
   },
   macros: {
     flexDirection: 'row',
@@ -111,7 +112,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   macroRange: {
-    color: '#6B7280',
+    color: '#D1D5DB',
+    fontSize: 13,
   },
   meta: {
     color: '#6B7280',

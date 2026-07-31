@@ -1,6 +1,12 @@
+import { isVaguePortion } from '@/utils/vaguePortion';
+
 export interface NutritionBounds {
   min: number | null;
   max: number | null;
+}
+
+export function midpoint(min: number, max: number) {
+  return (min + max) / 2;
 }
 
 export function hasNutritionRange(min: number | null, max: number | null) {
@@ -30,9 +36,79 @@ export function formatMacroRange(min: number | null, max: number | null) {
   return formatRangeBand(min, max, 'g');
 }
 
-export function midpoint(min: number, max: number) {
-  return (min + max) / 2;
+export function expandExactRange(point: number, spread = 0.25) {
+  if (point <= 0) {
+    return { point: 0, min: 0, max: 0 };
+  }
+  const delta = point * spread;
+  return {
+    point,
+    min: Math.max(0, Math.round(point - delta)),
+    max: Math.round(point + delta),
+  };
 }
+
+export function nutritionFieldFromRecord(record: Record<string, unknown>, base: string) {
+  const minKey = `${base}Min`;
+  const maxKey = `${base}Max`;
+
+  if (record[minKey] != null || record[maxKey] != null) {
+    return normalizeNutritionField({
+      min: record[minKey],
+      max: record[maxKey] ?? record[minKey],
+    });
+  }
+
+  return normalizeNutritionField(record[base]);
+}
+
+export function applyVagueRangeFallback<T extends {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  caloriesMin: number;
+  caloriesMax: number;
+  proteinMin: number;
+  proteinMax: number;
+  carbsMin: number;
+  carbsMax: number;
+  fatMin: number;
+  fatMax: number;
+}>(item: T, input: string): T {
+  if (!isVaguePortion(input)) {
+    return item;
+  }
+
+  const maybeExpand = (point: number, min: number, max: number) => {
+    if (hasNutritionRange(min, max)) {
+      return { point, min, max };
+    }
+    return expandExactRange(point);
+  };
+
+  const calories = maybeExpand(item.calories, item.caloriesMin, item.caloriesMax);
+  const protein = maybeExpand(item.protein, item.proteinMin, item.proteinMax);
+  const carbs = maybeExpand(item.carbs, item.carbsMin, item.carbsMax);
+  const fat = maybeExpand(item.fat, item.fatMin, item.fatMax);
+
+  return {
+    ...item,
+    calories: calories.point,
+    protein: protein.point,
+    carbs: carbs.point,
+    fat: fat.point,
+    caloriesMin: calories.min,
+    caloriesMax: calories.max,
+    proteinMin: protein.min,
+    proteinMax: protein.max,
+    carbsMin: carbs.min,
+    carbsMax: carbs.max,
+    fatMin: fat.min,
+    fatMax: fat.max,
+  };
+}
+
 
 export function normalizeNutritionField(value: unknown): {
   point: number;
