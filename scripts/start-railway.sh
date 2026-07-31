@@ -25,4 +25,4 @@ fi
 echo "Metro proxy URL: ${EXPO_PACKAGER_PROXY_URL}"
 echo "Open Expo Go on your iPhone → Enter URL: exp://${RAILWAY_PUBLIC_DOMAIN}"
 
-exec expo start --port "${PORT}" --host lan -c
+exec expo start --port "${PORT}" --host lan

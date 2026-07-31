@@ -4,6 +4,7 @@ import type { DailySummary, FoodEntry, FoodEntryInput, FoodSource, MealType, Sav
 import { createLogGroupId } from '@/utils/id';
 
 const DB_NAME = 'cursor_calorie_tracker.db';
+const SCHEMA_VERSION = 2;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 let initPromise: Promise<void> | null = null;
@@ -13,6 +14,22 @@ async function getDb() {
     dbPromise = SQLite.openDatabaseAsync(DB_NAME);
   }
   return dbPromise;
+}
+
+async function tableHasColumn(db: SQLite.SQLiteDatabase, table: string, column: string) {
+  const columns = await db.getAllAsync<Record<string, unknown>>(`PRAGMA table_info(${table})`);
+  return columns.some((row) => String(row.name) === column);
+}
+
+async function ensureColumn(
+  db: SQLite.SQLiteDatabase,
+  table: string,
+  column: string,
+  definition: string,
+) {
+  if (!(await tableHasColumn(db, table, column))) {
+    await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
 }
 
 async function runMigrations() {
@@ -36,7 +53,6 @@ async function runMigrations() {
     );
     CREATE INDEX IF NOT EXISTS idx_food_entries_date ON food_entries(date);
     CREATE INDEX IF NOT EXISTS idx_food_entries_created_at ON food_entries(created_at);
-    CREATE INDEX IF NOT EXISTS idx_food_entries_log_group_id ON food_entries(log_group_id);
     CREATE TABLE IF NOT EXISTS saved_foods (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -49,14 +65,25 @@ async function runMigrations() {
       updated_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_saved_foods_name ON saved_foods(name);
+    CREATE TABLE IF NOT EXISTS schema_version (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      version INTEGER NOT NULL
+    );
   `);
 
-  const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(food_entries)`);
-  if (!columns.some((column) => column.name === 'log_group_id')) {
-    await db.execAsync(`ALTER TABLE food_entries ADD COLUMN log_group_id TEXT`);
-    await db.execAsync(
-      `CREATE INDEX IF NOT EXISTS idx_food_entries_log_group_id ON food_entries(log_group_id)`,
-    );
+  await ensureColumn(db, 'food_entries', 'log_group_id', 'TEXT');
+  await db.execAsync(
+    `CREATE INDEX IF NOT EXISTS idx_food_entries_log_group_id ON food_entries(log_group_id)`,
+  );
+
+  const versionRow = await db.getFirstAsync<{ version: number }>(
+    `SELECT version FROM schema_version WHERE id = 1`,
+  );
+  const currentVersion = versionRow?.version ?? 1;
+  if (currentVersion < SCHEMA_VERSION) {
+    await db.runAsync(`INSERT OR REPLACE INTO schema_version (id, version) VALUES (1, ?)`, [
+      SCHEMA_VERSION,
+    ]);
   }
 }
 
