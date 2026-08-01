@@ -15,17 +15,42 @@ import { lookupBarcode } from '@/services/openFoodFacts';
 import { inferMealType } from '@/utils/meal';
 import { formatFullNutrition } from '@/utils/nutrition';
 
+interface ScannedProductPreview {
+  label: string;
+}
+
+function closeBarcodeScreen() {
+  if (router.canDismiss()) {
+    router.dismiss();
+    return;
+  }
+
+  if (router.canGoBack()) {
+    router.back();
+    return;
+  }
+
+  router.replace('/(tabs)');
+}
+
 export default function BarcodeScreen() {
-  const { addEntry } = useFood();
+  const { addEntry, logDate } = useFood();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [lastScan, setLastScan] = useState<ScannedProductPreview | null>(null);
 
   useEffect(() => {
     if (!permission) {
       requestPermission();
     }
   }, [permission, requestPermission]);
+
+  const resetScanner = () => {
+    setLastScan(null);
+    setScanning(true);
+    setProcessing(false);
+  };
 
   const handleBarcode = async ({ data }: { data: string }) => {
     if (!scanning || processing) return;
@@ -52,15 +77,14 @@ export default function BarcodeScreen() {
         source: 'barcode',
         barcode: data,
       });
-      Alert.alert('Logged', `${product.name}\n${formatFullNutrition(product)}`, [
-        { text: 'Scan another', onPress: () => setScanning(true) },
-        { text: 'Done', onPress: () => router.back() },
-      ]);
+      setLastScan({
+        label: `${product.name}\n${formatFullNutrition(product)}`,
+      });
     } catch (error) {
       Alert.alert(
         'Barcode lookup failed',
         error instanceof Error ? error.message : 'Unknown error',
-        [{ text: 'Try again', onPress: () => setScanning(true) }],
+        [{ text: 'Try again', onPress: resetScanner }],
       );
     } finally {
       setProcessing(false);
@@ -97,12 +121,32 @@ export default function BarcodeScreen() {
         onBarcodeScanned={scanning ? handleBarcode : undefined}
       />
       <View style={styles.overlay}>
-        <Text style={styles.title}>Scan a barcode</Text>
-        <Text style={styles.subtitle}>Point your camera at a product barcode.</Text>
-        {processing && <ActivityIndicator color="#FFFFFF" style={{ marginTop: 16 }} />}
-        <Pressable style={styles.cancelButton} onPress={() => router.back()}>
-          <Text style={styles.cancelText}>Cancel</Text>
-        </Pressable>
+        {lastScan ? (
+          <View style={styles.successCard}>
+            <Text style={styles.successTitle}>Logged</Text>
+            <Text style={styles.successBody}>{lastScan.label}</Text>
+            <Text style={styles.successMeta}>Saved to {logDate}</Text>
+            <View style={styles.successActions}>
+              <Pressable style={styles.secondaryAction} onPress={resetScanner}>
+                <Text style={styles.secondaryActionText}>Scan another</Text>
+              </Pressable>
+              <Pressable style={styles.primaryAction} onPress={closeBarcodeScreen}>
+                <Text style={styles.primaryActionText}>Done</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.title}>Scan a barcode</Text>
+            <Text style={styles.subtitle}>Point your camera at a product barcode.</Text>
+            {processing ? <ActivityIndicator color="#FFFFFF" style={{ marginTop: 16 }} /> : null}
+          </>
+        )}
+        {!lastScan ? (
+          <Pressable style={styles.cancelButton} onPress={closeBarcodeScreen}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -129,6 +173,54 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: '#E5E7EB',
+  },
+  successCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
+    gap: 10,
+  },
+  successTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  successBody: {
+    color: '#374151',
+    lineHeight: 22,
+  },
+  successMeta: {
+    color: '#047857',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  successActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  primaryAction: {
+    flex: 1,
+    backgroundColor: '#059669',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  primaryActionText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  secondaryAction: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  secondaryActionText: {
+    color: '#111827',
+    fontWeight: '600',
   },
   cancelButton: {
     marginTop: 12,

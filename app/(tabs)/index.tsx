@@ -1,17 +1,19 @@
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Link } from 'expo-router';
 
 import { AddFoodModal } from '@/components/AddFoodModal';
 import { DailySummaryCard } from '@/components/DailySummaryCard';
 import { FoodEntryList } from '@/components/FoodEntryList';
 import { InProgressParseList } from '@/components/InProgressParseList';
+import { LogDateSelector } from '@/components/LogDateSelector';
 import { Text } from '@/components/Themed';
-import { ParseJobsProvider, useParseJobs } from '@/context/ParseJobsContext';
+import { useParseJobs } from '@/context/ParseJobsContext';
 import { useFood } from '@/context/FoodContext';
 
-function TodayScreenContent() {
-  const { todaySummary, todayEntries, editEntry, removeEntry } = useFood();
+export default function TodayScreen() {
+  const { today, logDate, setLogDate, todaySummary, todayEntries, editEntry, removeEntry } =
+    useFood();
   const { displayJobs, submitParse, dismissJob, retryJob } = useParseJobs();
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -23,6 +25,7 @@ function TodayScreenContent() {
     <>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <Text style={styles.heading}>Today</Text>
+        <LogDateSelector logDate={logDate} today={today} onChange={setLogDate} />
         <DailySummaryCard summary={todaySummary} />
         <View style={styles.actions}>
           <Pressable style={styles.primaryAction} onPress={() => setModalVisible(true)}>
@@ -44,16 +47,6 @@ function TodayScreenContent() {
         onSubmit={handleParse}
       />
     </>
-  );
-}
-
-export default function TodayScreen() {
-  const { today, addEntries } = useFood();
-
-  return (
-    <ParseJobsProvider today={today} onParsed={addEntries}>
-      <TodayScreenContent />
-    </ParseJobsProvider>
   );
 }
 

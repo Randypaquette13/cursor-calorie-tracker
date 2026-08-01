@@ -16,6 +16,8 @@ import type { DailySummary, FoodEntry, FoodEntryInput, MealType } from '@/types/
 interface FoodContextValue {
   ready: boolean;
   today: string;
+  logDate: string;
+  setLogDate: (date: string) => void;
   todayEntries: FoodEntry[];
   todaySummary: DailySummary;
   historySelectedDate: string;
@@ -53,6 +55,7 @@ const FoodContext = createContext<FoodContextValue | null>(null);
 export function FoodProvider({ children }: { children: React.ReactNode }) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [ready, setReady] = useState(false);
+  const [logDate, setLogDate] = useState(today);
   const [historySelectedDate, setHistorySelectedDate] = useState(today);
   const [todayEntries, setTodayEntries] = useState<FoodEntry[]>([]);
   const [todaySummary, setTodaySummary] = useState<DailySummary>({
@@ -128,11 +131,11 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
     async (entry: FoodEntryInput) => {
       await insertFoodEntry({
         ...entry,
-        date: today,
+        date: logDate,
       });
       await refresh();
     },
-    [refresh, today],
+    [logDate, refresh],
   );
 
   const addEntries = useCallback(
@@ -141,15 +144,15 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
       if (entries.length === 1) {
         await insertFoodEntry({
           ...entries[0],
-          date: today,
+          date: logDate,
           rawInput: entries[0].rawInput ?? options?.rawInput ?? null,
         });
       } else {
-        await insertFoodEntries(today, entries, options);
+        await insertFoodEntries(logDate, entries, options);
       }
       await refresh();
     },
-    [refresh, today],
+    [logDate, refresh],
   );
 
   const editEntry = useCallback(
@@ -190,6 +193,8 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
     () => ({
       ready,
       today,
+      logDate,
+      setLogDate,
       todayEntries,
       todaySummary,
       historySelectedDate,
@@ -206,6 +211,7 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
     [
       ready,
       today,
+      logDate,
       todayEntries,
       todaySummary,
       historySelectedDate,

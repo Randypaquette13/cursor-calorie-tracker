@@ -1,4 +1,3 @@
-import { format } from 'date-fns';
 import {
   createContext,
   useCallback,
@@ -42,22 +41,22 @@ const RUN_TIMEOUT_MS = 120_000;
 
 interface ParseJobsProviderProps {
   children: React.ReactNode;
-  today: string;
+  logDate: string;
   onParsed: (entries: FoodEntryInput[], options?: { rawInput?: string | null }) => Promise<void>;
 }
 
-export function ParseJobsProvider({ children, today, onParsed }: ParseJobsProviderProps) {
+export function ParseJobsProvider({ children, logDate, onParsed }: ParseJobsProviderProps) {
   const [displayJobs, setDisplayJobs] = useState<ParseJob[]>([]);
   const processingRef = useRef(false);
   const mountedRef = useRef(true);
 
   const refreshDisplayJobs = useCallback(async () => {
-    const jobs = await getDisplayParseJobs(today);
+    const jobs = await getDisplayParseJobs(logDate);
     if (mountedRef.current) {
       setDisplayJobs(jobs);
     }
     return jobs;
-  }, [today]);
+  }, [logDate]);
 
   const completeJob = useCallback(
     async (job: ParseJob, resultText: string) => {
@@ -218,11 +217,11 @@ export function ParseJobsProvider({ children, today, onParsed }: ParseJobsProvid
 
   const submitParse = useCallback(
     async (text: string) => {
-      await insertParseJob(today, text);
+      await insertParseJob(logDate, text);
       await refreshDisplayJobs();
       void processQueue();
     },
-    [processQueue, refreshDisplayJobs, today],
+    [logDate, processQueue, refreshDisplayJobs],
   );
 
   const dismissJob = useCallback(
@@ -256,9 +255,9 @@ export function ParseJobsProvider({ children, today, onParsed }: ParseJobsProvid
   }, []);
 
   useEffect(() => {
-    if (!today) return;
+    if (!logDate) return;
     void refreshDisplayJobs().then(() => processQueue());
-  }, [processQueue, refreshDisplayJobs, today]);
+  }, [logDate, processQueue, refreshDisplayJobs]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
