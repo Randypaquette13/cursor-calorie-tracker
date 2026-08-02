@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import Constants from 'expo-constants';
 
+import { CopyableText } from '@/components/CopyableText';
 import { Text } from '@/components/Themed';
 import { StravaConnectCard } from '@/components/StravaSection';
 import { clearApiKey, getStoredApiKey, saveApiKey } from '@/services/cursorParser';
@@ -131,7 +132,7 @@ export default function SettingsScreen() {
           Create an app at strava.com/settings/api, then paste your Client ID and Client Secret
           below. Add this callback URL in your Strava app settings:
         </Text>
-        <Text style={styles.mono}>{redirectUri}</Text>
+        <CopyableText value={redirectUri} />
         <TextInput
           style={styles.input}
           value={stravaClientId}
@@ -224,12 +225,6 @@ const styles = StyleSheet.create({
   cardBody: {
     color: '#6B7280',
     lineHeight: 21,
-  },
-  mono: {
-    color: '#374151',
-    fontFamily: 'SpaceMono',
-    fontSize: 12,
-    lineHeight: 18,
   },
   input: {
     borderWidth: 1,
