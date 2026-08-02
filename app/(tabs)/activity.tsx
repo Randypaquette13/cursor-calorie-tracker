@@ -7,6 +7,7 @@ import { AddActivityModal } from '@/components/AddActivityModal';
 import { InProgressActivityParseList } from '@/components/InProgressActivityParseList';
 import { LogDateSelector } from '@/components/LogDateSelector';
 import { StravaActivitiesCard, StravaConnectCard } from '@/components/StravaSection';
+import { SettingsLinkCard } from '@/components/SettingsLinkCard';
 import { Text } from '@/components/Themed';
 import { useActivity } from '@/context/ActivityContext';
 import { useActivityJobs } from '@/context/ActivityJobsContext';
@@ -102,6 +103,8 @@ export default function ActivityScreen() {
         </View>
 
         <StravaConnectCard compact />
+
+        <SettingsLinkCard compact />
 
         <LogDateSelector logDate={logDate} today={today} onChange={setLogDate} />
 

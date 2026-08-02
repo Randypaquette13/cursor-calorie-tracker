@@ -1,4 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import { format, parseISO } from 'date-fns';
+import { Link } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -10,6 +12,7 @@ import {
 } from 'react-native';
 
 import { Text } from '@/components/Themed';
+import { SettingsLinkCard } from '@/components/SettingsLinkCard';
 import { WeightTrendChart } from '@/components/WeightTrendChart';
 import { useProfile } from '@/context/ProfileContext';
 import type { WeightEntry } from '@/types/profile';
@@ -89,7 +92,14 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.heading}>Profile</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.heading}>Profile</Text>
+        <Link href="/(tabs)/settings" asChild>
+          <Pressable hitSlop={12} style={styles.settingsButton}>
+            <Ionicons name="settings-outline" size={24} color="#374151" />
+          </Pressable>
+        </Link>
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Height</Text>
@@ -204,6 +214,8 @@ export default function ProfileScreen() {
           </View>
         ) : null}
       </View>
+
+      <SettingsLinkCard />
     </ScrollView>
   );
 }
@@ -211,6 +223,21 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   content: { padding: 20, gap: 16, paddingBottom: 40 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  settingsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   heading: { fontSize: 28, fontWeight: '700', color: '#111827' },
   card: {
     backgroundColor: '#FFFFFF',
