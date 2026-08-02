@@ -27,7 +27,7 @@ module.exports = {
     plugins: isEasBuild ? [...base.expo.plugins, ...easOnlyPlugins] : base.expo.plugins,
     extra: {
       ...base.expo.extra,
-      buildVersion: '2026-08-02-tab-bar-polish',
+      buildVersion: '2026-08-02-tab-bar-collapse-v2',
       stravaOAuthRedirectUri,
       stravaCallbackDomain,
     },
