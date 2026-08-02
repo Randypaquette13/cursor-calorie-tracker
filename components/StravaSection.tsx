@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
 
+import { CopyableText } from '@/components/CopyableText';
 import { Text } from '@/components/Themed';
 import { useStrava } from '@/context/StravaContext';
 import type { StravaActivitySummary } from '@/types/strava';
@@ -75,7 +76,10 @@ export function StravaConnectCard({ compact = false }: StravaConnectCardProps) {
             calorie burn estimate.
           </Text>
           {!compact ? (
-            <Text style={styles.hint}>Callback URL for your Strava app: {redirectUri}</Text>
+            <>
+              <Text style={styles.hint}>Callback URL for your Strava app:</Text>
+              <CopyableText value={redirectUri} />
+            </>
           ) : null}
           <Pressable style={styles.primaryButton} onPress={handleConnect} disabled={loading}>
             {loading ? (
