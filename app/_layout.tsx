@@ -1,8 +1,11 @@
+import 'react-native-gesture-handler';
+
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
@@ -49,29 +52,39 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
   return (
-    <FoodProvider>
-      <ProfileProvider>
-        <StravaProvider>
-          <ParseJobsBridge>
-            <ActivityJobsBridge>
-              <SavedFoodsProvider>
-                <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-                  <Stack>
-                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                    <Stack.Screen
-                      name="barcode"
-                      options={{
-                        title: 'Scan barcode',
-                        presentation: 'modal',
-                      }}
-                    />
-                  </Stack>
-                </ThemeProvider>
-              </SavedFoodsProvider>
-            </ActivityJobsBridge>
-          </ParseJobsBridge>
-        </StravaProvider>
-      </ProfileProvider>
-    </FoodProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <FoodProvider>
+        <ProfileProvider>
+          <StravaProvider>
+            <ParseJobsBridge>
+              <ActivityJobsBridge>
+                <SavedFoodsProvider>
+                  <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                    <Stack>
+                      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                      <Stack.Screen
+                        name="settings"
+                        options={{
+                          title: 'Settings',
+                          headerShown: true,
+                          headerBackTitle: 'Back',
+                        }}
+                      />
+                      <Stack.Screen
+                        name="barcode"
+                        options={{
+                          title: 'Scan barcode',
+                          presentation: 'modal',
+                        }}
+                      />
+                    </Stack>
+                  </ThemeProvider>
+                </SavedFoodsProvider>
+              </ActivityJobsBridge>
+            </ParseJobsBridge>
+          </StravaProvider>
+        </ProfileProvider>
+      </FoodProvider>
+    </GestureHandlerRootView>
   );
 }

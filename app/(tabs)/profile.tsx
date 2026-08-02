@@ -94,7 +94,7 @@ export default function ProfileScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
         <Text style={styles.heading}>Profile</Text>
-        <Link href="/(tabs)/settings" asChild>
+        <Link href="/settings" asChild>
           <Pressable hitSlop={12} style={styles.settingsButton}>
             <Ionicons name="settings-outline" size={24} color="#374151" />
           </Pressable>
