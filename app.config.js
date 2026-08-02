@@ -1,6 +1,8 @@
 /** @type {import('expo/config').ExpoConfig} */
 const base = require('./app.json');
 
+require('./scripts/ping-brrr-once.cjs').pingBrrrOnce('app-config');
+
 const isEasBuild = process.env.EAS_BUILD === 'true';
 
 const easOnlyPlugins = [
@@ -22,7 +24,7 @@ module.exports = {
     plugins: isEasBuild ? [...base.expo.plugins, ...easOnlyPlugins] : base.expo.plugins,
     extra: {
       ...base.expo.extra,
-      buildVersion: '2026-08-02-brrr-metro-ping',
+      buildVersion: '2026-08-02-brrr-github-action',
     },
   },
 };
