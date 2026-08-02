@@ -4,8 +4,5 @@ nixPkgs = ["nodejs_20", "curl"]
 [phases.install]
 cmds = ["npm ci"]
 
-[phases.build]
-cmds = ["sh scripts/ping-brrr-deploy.sh"]
-
 [start]
-cmd = "sh scripts/railway-entrypoint.sh"
+cmd = "npm start"
