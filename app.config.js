@@ -22,7 +22,7 @@ module.exports = {
     plugins: isEasBuild ? [...base.expo.plugins, ...easOnlyPlugins] : base.expo.plugins,
     extra: {
       ...base.expo.extra,
-      buildVersion: '2026-08-02-strava-activity-integration',
+      buildVersion: '2026-08-02-gorilla-banana-icon',
     },
   },
 };
