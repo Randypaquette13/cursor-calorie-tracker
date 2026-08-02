@@ -1,8 +1,33 @@
 #!/usr/bin/env sh
 set -eu
 
-curl -X POST https://api.brrr.now/v1/br_usr_6d7e11e27448c0090bcbcc52eb9177975dcd74a10ce84b23ba036c0d6de6b091 \
-  -d 'Calorie tracker server restarted' || true
+BRRR_URL="https://api.brrr.now/v1/br_usr_6d7e11e27448c0090bcbcc52eb9177975dcd74a10ce84b23ba036c0d6de6b091"
+BRRR_MESSAGE="Calorie tracker server restarted"
+
+echo "Sending brrr.now startup ping..."
+
+if command -v curl >/dev/null 2>&1; then
+  BRRR_RESPONSE="$(curl -sS -w '\n%{http_code}' -X POST "${BRRR_URL}" -d "${BRRR_MESSAGE}" || true)"
+  BRRR_BODY="$(printf '%s' "${BRRR_RESPONSE}" | sed '$d')"
+  BRRR_STATUS="$(printf '%s' "${BRRR_RESPONSE}" | tail -n 1)"
+  echo "brrr.now curl response: HTTP ${BRRR_STATUS:-unknown} ${BRRR_BODY}"
+else
+  echo "curl not found, using node fetch..."
+  node -e "
+    fetch('${BRRR_URL}', {
+      method: 'POST',
+      body: '${BRRR_MESSAGE}',
+    })
+      .then(async (response) => {
+        const body = await response.text();
+        console.log('brrr.now fetch response: HTTP', response.status, body);
+      })
+      .catch((error) => {
+        console.error('brrr.now fetch failed:', error);
+        process.exit(0);
+      });
+  "
+fi
 
 PORT="${PORT:-8081}"
 
