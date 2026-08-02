@@ -9,8 +9,9 @@ interface TabBarContextValue {
 
 const TabBarContext = createContext<TabBarContextValue | null>(null);
 
-const COLLAPSE_DELTA = 8;
-const EXPAND_DELTA = 8;
+/** Accumulated scroll distance (px) in one direction before toggling. */
+const COLLAPSE_DISTANCE = 14;
+const EXPAND_DISTANCE = 14;
 const TOP_REGION = 32;
 /** Ignore huge jumps (e.g. switching tabs with different scroll offsets). */
 const MAX_TRACKED_DELTA = 120;
@@ -18,6 +19,7 @@ const MAX_TRACKED_DELTA = 120;
 export function TabBarProvider({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const lastYRef = useRef(0);
+  const accumulatedRef = useRef(0);
 
   const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = event.nativeEvent.contentOffset.y;
@@ -25,17 +27,29 @@ export function TabBarProvider({ children }: { children: React.ReactNode }) {
     lastYRef.current = y;
 
     if (Math.abs(delta) > MAX_TRACKED_DELTA) {
+      accumulatedRef.current = 0;
       return;
     }
 
     if (y <= TOP_REGION) {
+      accumulatedRef.current = 0;
       setCollapsed(false);
       return;
     }
 
-    if (delta > COLLAPSE_DELTA) {
+    // Reset the accumulator when the scroll direction flips so slow,
+    // steady scrolls in one direction always add up to the threshold.
+    if ((delta > 0 && accumulatedRef.current < 0) || (delta < 0 && accumulatedRef.current > 0)) {
+      accumulatedRef.current = 0;
+    }
+
+    accumulatedRef.current += delta;
+
+    if (accumulatedRef.current > COLLAPSE_DISTANCE) {
+      accumulatedRef.current = 0;
       setCollapsed(true);
-    } else if (delta < -EXPAND_DELTA) {
+    } else if (accumulatedRef.current < -EXPAND_DISTANCE) {
+      accumulatedRef.current = 0;
       setCollapsed(false);
     }
   }, []);
