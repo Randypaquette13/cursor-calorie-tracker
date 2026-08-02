@@ -10,11 +10,22 @@ import {
 import Constants from 'expo-constants';
 
 import { Text } from '@/components/Themed';
+import { StravaConnectCard } from '@/components/StravaSection';
 import { clearApiKey, getStoredApiKey, saveApiKey } from '@/services/cursorParser';
+import {
+  clearStravaCredentials,
+  getStravaCredentials,
+  getStravaRedirectUri,
+  saveStravaCredentials,
+} from '@/services/strava';
 
 export default function SettingsScreen() {
   const [apiKey, setApiKey] = useState('');
   const [saved, setSaved] = useState(false);
+  const [stravaClientId, setStravaClientId] = useState('');
+  const [stravaClientSecret, setStravaClientSecret] = useState('');
+  const [stravaSaved, setStravaSaved] = useState(false);
+  const redirectUri = getStravaRedirectUri();
   const buildVersion =
     (Constants.expoConfig?.extra as { buildVersion?: string } | undefined)?.buildVersion ??
     'unknown';
@@ -25,6 +36,15 @@ export default function SettingsScreen() {
       if (existing) {
         setApiKey(existing);
         setSaved(true);
+      }
+
+      const stravaCredentials = await getStravaCredentials();
+      if (stravaCredentials.clientId) {
+        setStravaClientId(stravaCredentials.clientId);
+      }
+      if (stravaCredentials.clientSecret) {
+        setStravaClientSecret(stravaCredentials.clientSecret);
+        setStravaSaved(true);
       }
     })();
   }, []);
@@ -44,6 +64,32 @@ export default function SettingsScreen() {
     await clearApiKey();
     setApiKey('');
     setSaved(false);
+  };
+
+  const handleSaveStrava = async () => {
+    const clientId = stravaClientId.trim();
+    const clientSecret = stravaClientSecret.trim();
+    if (!clientId || !clientSecret) {
+      Alert.alert(
+        'Strava credentials required',
+        'Create an app at strava.com/settings/api and paste your Client ID and Client Secret.',
+      );
+      return;
+    }
+
+    await saveStravaCredentials(clientId, clientSecret);
+    setStravaSaved(true);
+    Alert.alert(
+      'Saved',
+      `Add this callback URL to your Strava app settings:\n\n${redirectUri}`,
+    );
+  };
+
+  const handleClearStrava = async () => {
+    await clearStravaCredentials();
+    setStravaClientId('');
+    setStravaClientSecret('');
+    setStravaSaved(false);
   };
 
   return (
@@ -78,6 +124,52 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
       </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Strava API credentials</Text>
+        <Text style={styles.cardBody}>
+          Create an app at strava.com/settings/api, then paste your Client ID and Client Secret
+          below. Add this callback URL in your Strava app settings:
+        </Text>
+        <Text style={styles.mono}>{redirectUri}</Text>
+        <TextInput
+          style={styles.input}
+          value={stravaClientId}
+          onChangeText={(value) => {
+            setStravaClientId(value);
+            setStravaSaved(false);
+          }}
+          placeholder="Client ID"
+          placeholderTextColor="#9CA3AF"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <TextInput
+          style={styles.input}
+          value={stravaClientSecret}
+          onChangeText={(value) => {
+            setStravaClientSecret(value);
+            setStravaSaved(false);
+          }}
+          placeholder="Client Secret"
+          placeholderTextColor="#9CA3AF"
+          autoCapitalize="none"
+          autoCorrect={false}
+          secureTextEntry
+        />
+        <View style={styles.actions}>
+          <Pressable style={styles.primaryButton} onPress={handleSaveStrava}>
+            <Text style={styles.primaryText}>
+              {stravaSaved ? 'Update credentials' : 'Save credentials'}
+            </Text>
+          </Pressable>
+          <Pressable style={styles.secondaryButton} onPress={handleClearStrava}>
+            <Text style={styles.secondaryText}>Clear</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <StravaConnectCard />
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Barcode scanning</Text>
@@ -132,6 +224,12 @@ const styles = StyleSheet.create({
   cardBody: {
     color: '#6B7280',
     lineHeight: 21,
+  },
+  mono: {
+    color: '#374151',
+    fontFamily: 'SpaceMono',
+    fontSize: 12,
+    lineHeight: 18,
   },
   input: {
     borderWidth: 1,

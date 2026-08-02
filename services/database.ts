@@ -1,10 +1,26 @@
 import * as SQLite from 'expo-sqlite';
 
-import type { DailySummary, FoodEntry, FoodEntryInput, MealType, SavedFood } from '@/types/food';
+import type {
+  ActivityEntry,
+  ActivityEntryInput,
+  ActivityParseJob,
+  ActivityParseJobStatus,
+  UserProfile,
+  WeightEntry,
+} from '@/types/profile';
+import type {
+  DailySummary,
+  FoodEntry,
+  FoodEntryInput,
+  MealType,
+  ParseJob,
+  ParseJobStatus,
+  SavedFood,
+} from '@/types/food';
 import { createLogGroupId } from '@/utils/id';
 
 const DB_NAME = 'cursor_calorie_tracker.db';
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 6;
 
 const RANGE_COLUMNS = [
   ['calories_min', 'REAL'],
@@ -139,6 +155,55 @@ async function runMigrations() {
       id INTEGER PRIMARY KEY CHECK (id = 1),
       version INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS parse_jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      raw_input TEXT NOT NULL,
+      status TEXT NOT NULL,
+      agent_id TEXT,
+      run_id TEXT,
+      error_message TEXT,
+      created_at TEXT NOT NULL,
+      completed_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_parse_jobs_date ON parse_jobs(date);
+    CREATE INDEX IF NOT EXISTS idx_parse_jobs_status ON parse_jobs(status);
+    CREATE TABLE IF NOT EXISTS user_profile (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      height_cm REAL,
+      updated_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS weight_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      weight_kg REAL NOT NULL,
+      recorded_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_weight_entries_recorded_at ON weight_entries(recorded_at);
+    CREATE TABLE IF NOT EXISTS activity_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      raw_input TEXT NOT NULL,
+      activity_score REAL,
+      bmr_calories REAL NOT NULL,
+      activity_calories REAL NOT NULL,
+      total_burned_calories REAL NOT NULL,
+      summary TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_activity_entries_date ON activity_entries(date);
+    CREATE TABLE IF NOT EXISTS activity_parse_jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      raw_input TEXT NOT NULL,
+      status TEXT NOT NULL,
+      agent_id TEXT,
+      run_id TEXT,
+      error_message TEXT,
+      created_at TEXT NOT NULL,
+      completed_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_activity_parse_jobs_date ON activity_parse_jobs(date);
+    CREATE INDEX IF NOT EXISTS idx_activity_parse_jobs_status ON activity_parse_jobs(status);
   `);
 
   await ensureColumn(db, 'food_entries', 'log_group_id', 'TEXT');
@@ -149,6 +214,9 @@ async function runMigrations() {
   for (const [column, definition] of RANGE_COLUMNS) {
     await ensureColumn(db, 'food_entries', column, definition);
   }
+
+  await ensureColumn(db, 'activity_entries', 'strava_activities_json', 'TEXT');
+  await ensureColumn(db, 'activity_parse_jobs', 'strava_activities_json', 'TEXT');
 
   const versionRow = await db.getFirstAsync<{ version: number }>(
     `SELECT version FROM schema_version WHERE id = 1`,
@@ -497,4 +565,365 @@ export async function updateSavedFood(
 export async function deleteSavedFood(id: number) {
   const db = await ensureDb();
   await db.runAsync(`DELETE FROM saved_foods WHERE id = ?`, [id]);
+}
+
+function mapParseJobRow(row: Record<string, unknown>): ParseJob {
+  return {
+    id: row.id as number,
+    date: row.date as string,
+    rawInput: row.raw_input as string,
+    status: row.status as ParseJobStatus,
+    agentId: (row.agent_id as string | null) ?? null,
+    runId: (row.run_id as string | null) ?? null,
+    errorMessage: (row.error_message as string | null) ?? null,
+    createdAt: row.created_at as string,
+    completedAt: (row.completed_at as string | null) ?? null,
+  };
+}
+
+export async function insertParseJob(date: string, rawInput: string) {
+  const db = await ensureDb();
+  const createdAt = new Date().toISOString();
+  const result = await db.runAsync(
+    `INSERT INTO parse_jobs (date, raw_input, status, created_at)
+     VALUES (?, ?, 'queued', ?)`,
+    [date, rawInput, createdAt],
+  );
+
+  return {
+    id: result.lastInsertRowId,
+    date,
+    rawInput,
+    status: 'queued' as const,
+    agentId: null,
+    runId: null,
+    errorMessage: null,
+    createdAt,
+    completedAt: null,
+  } satisfies ParseJob;
+}
+
+export async function getDisplayParseJobs(date: string) {
+  const db = await ensureDb();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM parse_jobs
+     WHERE date = ? AND status IN ('queued', 'running', 'failed')
+     ORDER BY created_at ASC, id ASC`,
+    [date],
+  );
+  return rows.map(mapParseJobRow);
+}
+
+export async function getResumableParseJobs() {
+  const db = await ensureDb();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM parse_jobs
+     WHERE status IN ('queued', 'running')
+     ORDER BY created_at ASC, id ASC`,
+  );
+  return rows.map(mapParseJobRow);
+}
+
+export async function updateParseJob(
+  id: number,
+  updates: {
+    status?: ParseJobStatus;
+    agentId?: string | null;
+    runId?: string | null;
+    errorMessage?: string | null;
+    completedAt?: string | null;
+  },
+) {
+  const db = await ensureDb();
+  const fields: string[] = [];
+  const values: (string | number | null)[] = [];
+
+  if (updates.status !== undefined) {
+    fields.push('status = ?');
+    values.push(updates.status);
+  }
+  if (updates.agentId !== undefined) {
+    fields.push('agent_id = ?');
+    values.push(updates.agentId);
+  }
+  if (updates.runId !== undefined) {
+    fields.push('run_id = ?');
+    values.push(updates.runId);
+  }
+  if (updates.errorMessage !== undefined) {
+    fields.push('error_message = ?');
+    values.push(updates.errorMessage);
+  }
+  if (updates.completedAt !== undefined) {
+    fields.push('completed_at = ?');
+    values.push(updates.completedAt);
+  }
+
+  if (fields.length === 0) return;
+
+  values.push(id);
+  await db.runAsync(`UPDATE parse_jobs SET ${fields.join(', ')} WHERE id = ?`, values);
+}
+
+export async function deleteParseJob(id: number) {
+  const db = await ensureDb();
+  await db.runAsync(`DELETE FROM parse_jobs WHERE id = ?`, [id]);
+}
+
+export async function getUserProfile(): Promise<UserProfile> {
+  const db = await ensureDb();
+  const row = await db.getFirstAsync<Record<string, unknown>>(`SELECT * FROM user_profile WHERE id = 1`);
+  if (!row) {
+    return { heightCm: null, updatedAt: null };
+  }
+  return {
+    heightCm: (row.height_cm as number | null) ?? null,
+    updatedAt: (row.updated_at as string | null) ?? null,
+  };
+}
+
+export async function saveUserHeight(heightCm: number) {
+  const db = await ensureDb();
+  const now = new Date().toISOString();
+  await db.runAsync(
+    `INSERT INTO user_profile (id, height_cm, updated_at)
+     VALUES (1, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET height_cm = excluded.height_cm, updated_at = excluded.updated_at`,
+    [heightCm, now],
+  );
+}
+
+function mapWeightEntryRow(row: Record<string, unknown>): WeightEntry {
+  return {
+    id: row.id as number,
+    weightKg: row.weight_kg as number,
+    recordedAt: row.recorded_at as string,
+  };
+}
+
+export async function insertWeightEntry(weightKg: number) {
+  const db = await ensureDb();
+  const recordedAt = new Date().toISOString();
+  const result = await db.runAsync(
+    `INSERT INTO weight_entries (weight_kg, recorded_at) VALUES (?, ?)`,
+    [weightKg, recordedAt],
+  );
+  return {
+    id: result.lastInsertRowId,
+    weightKg,
+    recordedAt,
+  } satisfies WeightEntry;
+}
+
+export async function getWeightEntries(limit?: number): Promise<WeightEntry[]> {
+  const db = await ensureDb();
+  const rows = limit
+    ? await db.getAllAsync<Record<string, unknown>>(
+        `SELECT * FROM weight_entries ORDER BY recorded_at DESC, id DESC LIMIT ?`,
+        [limit],
+      )
+    : await db.getAllAsync<Record<string, unknown>>(
+        `SELECT * FROM weight_entries ORDER BY recorded_at DESC, id DESC`,
+      );
+  return rows.map(mapWeightEntryRow);
+}
+
+export async function getLatestWeightEntry(): Promise<WeightEntry | null> {
+  const db = await ensureDb();
+  const row = await db.getFirstAsync<Record<string, unknown>>(
+    `SELECT * FROM weight_entries ORDER BY recorded_at DESC, id DESC LIMIT 1`,
+  );
+  return row ? mapWeightEntryRow(row) : null;
+}
+
+export async function deleteWeightEntry(id: number) {
+  const db = await ensureDb();
+  await db.runAsync(`DELETE FROM weight_entries WHERE id = ?`, [id]);
+}
+
+function mapActivityEntryRow(row: Record<string, unknown>): ActivityEntry {
+  return {
+    id: row.id as number,
+    date: row.date as string,
+    rawInput: row.raw_input as string,
+    activityScore: (row.activity_score as number | null) ?? null,
+    bmrCalories: row.bmr_calories as number,
+    activityCalories: row.activity_calories as number,
+    totalBurnedCalories: row.total_burned_calories as number,
+    summary: (row.summary as string | null) ?? null,
+    stravaActivitiesJson: (row.strava_activities_json as string | null) ?? null,
+    createdAt: row.created_at as string,
+  };
+}
+
+export async function insertActivityEntry(entry: ActivityEntryInput) {
+  const db = await ensureDb();
+  const createdAt = new Date().toISOString();
+  const result = await db.runAsync(
+    `INSERT INTO activity_entries
+      (date, raw_input, activity_score, bmr_calories, activity_calories, total_burned_calories, summary, strava_activities_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      entry.date,
+      entry.rawInput,
+      entry.activityScore ?? null,
+      entry.bmrCalories,
+      entry.activityCalories,
+      entry.totalBurnedCalories,
+      entry.summary ?? null,
+      entry.stravaActivitiesJson ?? null,
+      createdAt,
+    ],
+  );
+  return {
+    id: result.lastInsertRowId,
+    ...entry,
+    activityScore: entry.activityScore ?? null,
+    summary: entry.summary ?? null,
+    stravaActivitiesJson: entry.stravaActivitiesJson ?? null,
+    createdAt,
+  } satisfies ActivityEntry;
+}
+
+export async function getActivityEntriesForDate(date: string) {
+  const db = await ensureDb();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM activity_entries WHERE date = ? ORDER BY created_at DESC, id DESC`,
+    [date],
+  );
+  return rows.map(mapActivityEntryRow);
+}
+
+export async function getActivityBurnSummaryForDate(date: string) {
+  const db = await ensureDb();
+  const row = await db.getFirstAsync<Record<string, unknown>>(
+    `SELECT
+       COALESCE(SUM(total_burned_calories), 0) AS total_burned,
+       COALESCE(SUM(bmr_calories), 0) AS bmr_total,
+       COALESCE(SUM(activity_calories), 0) AS activity_total,
+       COUNT(*) AS entry_count
+     FROM activity_entries
+     WHERE date = ?`,
+    [date],
+  );
+
+  return {
+    totalBurned: (row?.total_burned as number) ?? 0,
+    bmrTotal: (row?.bmr_total as number) ?? 0,
+    activityTotal: (row?.activity_total as number) ?? 0,
+    entryCount: (row?.entry_count as number) ?? 0,
+  };
+}
+
+export async function deleteActivityEntry(id: number) {
+  const db = await ensureDb();
+  await db.runAsync(`DELETE FROM activity_entries WHERE id = ?`, [id]);
+}
+
+function mapActivityParseJobRow(row: Record<string, unknown>): ActivityParseJob {
+  return {
+    id: row.id as number,
+    date: row.date as string,
+    rawInput: row.raw_input as string,
+    status: row.status as ActivityParseJobStatus,
+    agentId: (row.agent_id as string | null) ?? null,
+    runId: (row.run_id as string | null) ?? null,
+    errorMessage: (row.error_message as string | null) ?? null,
+    stravaActivitiesJson: (row.strava_activities_json as string | null) ?? null,
+    createdAt: row.created_at as string,
+    completedAt: (row.completed_at as string | null) ?? null,
+  };
+}
+
+export async function insertActivityParseJob(
+  date: string,
+  rawInput: string,
+  stravaActivitiesJson?: string | null,
+) {
+  const db = await ensureDb();
+  const createdAt = new Date().toISOString();
+  const result = await db.runAsync(
+    `INSERT INTO activity_parse_jobs (date, raw_input, status, strava_activities_json, created_at)
+     VALUES (?, ?, 'queued', ?, ?)`,
+    [date, rawInput, stravaActivitiesJson ?? null, createdAt],
+  );
+  return {
+    id: result.lastInsertRowId,
+    date,
+    rawInput,
+    status: 'queued' as const,
+    agentId: null,
+    runId: null,
+    errorMessage: null,
+    stravaActivitiesJson: stravaActivitiesJson ?? null,
+    createdAt,
+    completedAt: null,
+  } satisfies ActivityParseJob;
+}
+
+export async function getDisplayActivityParseJobs(date: string) {
+  const db = await ensureDb();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM activity_parse_jobs
+     WHERE date = ? AND status IN ('queued', 'running', 'failed')
+     ORDER BY created_at ASC, id ASC`,
+    [date],
+  );
+  return rows.map(mapActivityParseJobRow);
+}
+
+export async function getResumableActivityParseJobs() {
+  const db = await ensureDb();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM activity_parse_jobs
+     WHERE status IN ('queued', 'running')
+     ORDER BY created_at ASC, id ASC`,
+  );
+  return rows.map(mapActivityParseJobRow);
+}
+
+export async function updateActivityParseJob(
+  id: number,
+  updates: {
+    status?: ActivityParseJobStatus;
+    agentId?: string | null;
+    runId?: string | null;
+    errorMessage?: string | null;
+    completedAt?: string | null;
+  },
+) {
+  const db = await ensureDb();
+  const fields: string[] = [];
+  const values: (string | number | null)[] = [];
+
+  if (updates.status !== undefined) {
+    fields.push('status = ?');
+    values.push(updates.status);
+  }
+  if (updates.agentId !== undefined) {
+    fields.push('agent_id = ?');
+    values.push(updates.agentId);
+  }
+  if (updates.runId !== undefined) {
+    fields.push('run_id = ?');
+    values.push(updates.runId);
+  }
+  if (updates.errorMessage !== undefined) {
+    fields.push('error_message = ?');
+    values.push(updates.errorMessage);
+  }
+  if (updates.completedAt !== undefined) {
+    fields.push('completed_at = ?');
+    values.push(updates.completedAt);
+  }
+
+  if (fields.length === 0) return;
+
+  values.push(id);
+  await db.runAsync(`UPDATE activity_parse_jobs SET ${fields.join(', ')} WHERE id = ?`, values);
+}
+
+export async function deleteActivityParseJob(id: number) {
+  const db = await ensureDb();
+  await db.runAsync(`DELETE FROM activity_parse_jobs WHERE id = ?`, [id]);
 }

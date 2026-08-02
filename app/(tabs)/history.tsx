@@ -1,11 +1,16 @@
 import { format, parseISO } from 'date-fns';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Link } from 'expo-router';
 
+import { AddFoodModal } from '@/components/AddFoodModal';
 import { DailySummaryCard } from '@/components/DailySummaryCard';
 import { FoodEntryList } from '@/components/FoodEntryList';
+import { InProgressParseList } from '@/components/InProgressParseList';
+import { LogDateSelector } from '@/components/LogDateSelector';
 import { Text } from '@/components/Themed';
 import { useFood } from '@/context/FoodContext';
+import { useParseJobs } from '@/context/ParseJobsContext';
 import { formatCaloriesEstimate, formatMacroEstimate } from '@/utils/nutrition';
 
 export default function HistoryScreen() {
@@ -16,9 +21,18 @@ export default function HistoryScreen() {
     historyEntries,
     historySummary,
     today,
+    logDate,
+    setLogDate,
     removeEntry,
     editEntry,
   } = useFood();
+  const { displayJobs, submitParse, dismissJob, retryJob } = useParseJobs();
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const selectDate = (date: string) => {
+    setHistorySelectedDate(date);
+    setLogDate(date);
+  };
 
   const selectedLabel = useMemo(() => {
     try {
@@ -28,44 +42,67 @@ export default function HistoryScreen() {
     }
   }, [historySelectedDate]);
 
+  const handleParse = async (text: string) => {
+    await submitParse(text);
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.heading}>History</Text>
-      <Text style={styles.subheading}>Tap a day to review what you logged.</Text>
+    <>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <Text style={styles.heading}>History</Text>
+        <Text style={styles.subheading}>Tap a day to review what you logged.</Text>
 
-      <View style={styles.historyList}>
-        {history.length === 0 ? (
-          <View style={styles.emptyHistory}>
-            <Text style={styles.emptyHistoryText}>Your logged days will appear here.</Text>
-          </View>
-        ) : (
-          history.map((day) => {
-            const selected = day.date === historySelectedDate;
-            return (
-              <Pressable
-                key={day.date}
-                style={[styles.historyItem, selected && styles.historyItemSelected]}
-                onPress={() => setHistorySelectedDate(day.date)}>
-                <View style={styles.historyCopy}>
-                  <Text style={styles.historyDate}>
-                    {day.date === today ? 'Today' : day.date}
-                  </Text>
-                  <Text style={styles.historyMeta}>
-                    {day.entryCount} entries · P {formatMacroEstimate(day.protein)} · C{' '}
-                    {formatMacroEstimate(day.carbs)} · F {formatMacroEstimate(day.fat)}
-                  </Text>
-                </View>
-                <Text style={styles.historyCalories}>{formatCaloriesEstimate(day.calories)}</Text>
-              </Pressable>
-            );
-          })
-        )}
-      </View>
+        <View style={styles.historyList}>
+          {history.length === 0 ? (
+            <View style={styles.emptyHistory}>
+              <Text style={styles.emptyHistoryText}>Your logged days will appear here.</Text>
+            </View>
+          ) : (
+            history.map((day) => {
+              const selected = day.date === historySelectedDate;
+              return (
+                <Pressable
+                  key={day.date}
+                  style={[styles.historyItem, selected && styles.historyItemSelected]}
+                  onPress={() => selectDate(day.date)}>
+                  <View style={styles.historyCopy}>
+                    <Text style={styles.historyDate}>
+                      {day.date === today ? 'Today' : day.date}
+                    </Text>
+                    <Text style={styles.historyMeta}>
+                      {day.entryCount} entries · P {formatMacroEstimate(day.protein)} · C{' '}
+                      {formatMacroEstimate(day.carbs)} · F {formatMacroEstimate(day.fat)}
+                    </Text>
+                  </View>
+                  <Text style={styles.historyCalories}>{formatCaloriesEstimate(day.calories)}</Text>
+                </Pressable>
+              );
+            })
+          )}
+        </View>
 
-      <Text style={styles.detailTitle}>{selectedLabel}</Text>
-      <DailySummaryCard summary={historySummary} title="Day summary" />
-      <FoodEntryList entries={historyEntries} onDelete={removeEntry} onEdit={editEntry} />
-    </ScrollView>
+        <Text style={styles.detailTitle}>{selectedLabel}</Text>
+        <LogDateSelector logDate={logDate} today={today} onChange={selectDate} />
+        <View style={styles.actions}>
+          <Pressable style={styles.primaryAction} onPress={() => setModalVisible(true)}>
+            <Text style={styles.primaryActionText}>Log food to this day</Text>
+          </Pressable>
+          <Link href="/barcode" asChild>
+            <Pressable style={styles.secondaryAction}>
+              <Text style={styles.secondaryActionText}>Scan barcode</Text>
+            </Pressable>
+          </Link>
+        </View>
+        <InProgressParseList jobs={displayJobs} onDismiss={dismissJob} onRetry={retryJob} />
+        <DailySummaryCard summary={historySummary} title="Day summary" />
+        <FoodEntryList entries={historyEntries} onDelete={removeEntry} onEdit={editEntry} />
+      </ScrollView>
+      <AddFoodModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onSubmit={handleParse}
+      />
+    </>
   );
 }
 
@@ -138,5 +175,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
     marginTop: 8,
+  },
+  actions: {
+    gap: 10,
+  },
+  primaryAction: {
+    backgroundColor: '#059669',
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  primaryActionText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  secondaryAction: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  secondaryActionText: {
+    color: '#111827',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });

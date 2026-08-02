@@ -37,6 +37,15 @@ Rules:
 - All min/max values must be numbers with min <= max.
 - When the user mentions a saved food by name (exact or close match), use that food's description and known nutrition instead of guessing; use exact values (min = max) when saved nutrition is known.`;
 
+const FOLLOW_UP_SUFFIX = `Respond with ONLY valid JSON (no markdown, no commentary) in the same shape as before.`;
+
+export type CursorRunStatus = 'CREATING' | 'RUNNING' | 'FINISHED' | 'ERROR' | 'CANCELLED' | 'EXPIRED';
+
+export interface CursorRunSnapshot {
+  status: CursorRunStatus;
+  result?: string;
+}
+
 function formatSavedFoodsForPrompt(savedFoods: SavedFood[]): string {
   if (savedFoods.length === 0) return '';
 
@@ -51,8 +60,12 @@ function formatSavedFoodsForPrompt(savedFoods: SavedFood[]): string {
   return `\n\nThe user has saved these personal foods. When their input matches or refers to a saved food name, use that food's description and known nutrition (when provided) instead of guessing:\n${lines.join('\n')}`;
 }
 
-function buildParsePrompt(input: string, savedFoods: SavedFood[]): string {
+function buildInitialParsePrompt(input: string, savedFoods: SavedFood[]): string {
   return `${SYSTEM_PROMPT}${formatSavedFoodsForPrompt(savedFoods)}\n\nFood description: ${input}`;
+}
+
+function buildFollowUpParsePrompt(input: string, savedFoods: SavedFood[]): string {
+  return `${formatSavedFoodsForPrompt(savedFoods)}\n\nFood description: ${input}\n\n${FOLLOW_UP_SUFFIX}`;
 }
 
 export async function getStoredApiKey() {
@@ -95,13 +108,7 @@ async function ensureParserVersion() {
   }
 }
 
-async function getOrCreateAgent(apiKey: string) {
-  await ensureParserVersion();
-  const existing = await SecureStore.getItemAsync(AGENT_ID_KEY);
-  if (existing) {
-    return existing;
-  }
-
+async function createAgent(apiKey: string) {
   const data = (await cursorFetch('/agents', apiKey, {
     method: 'POST',
     body: JSON.stringify({
@@ -114,27 +121,58 @@ async function getOrCreateAgent(apiKey: string) {
   return data.agent.id;
 }
 
-async function waitForRun(agentId: string, runId: string, apiKey: string) {
-  const deadline = Date.now() + 90_000;
-
-  while (Date.now() < deadline) {
-    const run = (await cursorFetch(
-      `/agents/${agentId}/runs/${runId}`,
-      apiKey,
-    )) as { status: string; result?: string };
-
-    if (run.status === 'FINISHED') {
-      return run.result ?? '';
-    }
-
-    if (run.status === 'ERROR' || run.status === 'CANCELLED' || run.status === 'EXPIRED') {
-      throw new Error(`Cursor run failed with status ${run.status}`);
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+async function getOrCreateAgent(apiKey: string) {
+  await ensureParserVersion();
+  const existing = await SecureStore.getItemAsync(AGENT_ID_KEY);
+  if (existing) {
+    return { agentId: existing, isNewAgent: false };
   }
 
-  throw new Error('Cursor took too long to parse this meal. Try again.');
+  const agentId = await createAgent(apiKey);
+  return { agentId, isNewAgent: true };
+}
+
+export async function startParseRun(input: string, savedFoods: SavedFood[] = []) {
+  const apiKey = await getStoredApiKey();
+  if (!apiKey) {
+    throw new Error('Add your Cursor API key in Settings first.');
+  }
+
+  const { agentId, isNewAgent } = await getOrCreateAgent(apiKey);
+  const promptText = isNewAgent
+    ? buildInitialParsePrompt(input, savedFoods)
+    : buildFollowUpParsePrompt(input, savedFoods);
+
+  const runData = (await cursorFetch(`/agents/${agentId}/runs`, apiKey, {
+    method: 'POST',
+    body: JSON.stringify({
+      prompt: {
+        text: promptText,
+      },
+    }),
+  })) as { run: { id: string } };
+
+  return {
+    agentId,
+    runId: runData.run.id,
+    apiKey,
+  };
+}
+
+export async function fetchRunSnapshot(
+  agentId: string,
+  runId: string,
+  apiKey: string,
+): Promise<CursorRunSnapshot> {
+  const run = (await cursorFetch(`/agents/${agentId}/runs/${runId}`, apiKey)) as {
+    status: CursorRunStatus;
+    result?: string;
+  };
+
+  return {
+    status: run.status,
+    result: run.result,
+  };
 }
 
 function extractJson(text: string): ParsedFoodResponse {
@@ -199,28 +237,24 @@ function finalizeParsedItem(
   return applyPortionRanges(item, input);
 }
 
-export async function parseNaturalLanguage(
+export function parseRunResult(
+  resultText: string,
   input: string,
   savedFoods: SavedFood[] = [],
-): Promise<ParsedFoodResponse> {
-  const apiKey = await getStoredApiKey();
-  if (!apiKey) {
-    throw new Error('Add your Cursor API key in Settings first.');
-  }
-
-  const agentId = await getOrCreateAgent(apiKey);
-  const runData = (await cursorFetch(`/agents/${agentId}/runs`, apiKey, {
-    method: 'POST',
-    body: JSON.stringify({
-      prompt: {
-        text: buildParsePrompt(input, savedFoods),
-      },
-    }),
-  })) as { run: { id: string } };
-
-  const resultText = await waitForRun(agentId, runData.run.id, apiKey);
+): ParsedFoodResponse {
   const parsed = extractJson(resultText);
   return {
     items: parsed.items.map((item) => finalizeParsedItem(item, input, savedFoods)),
   };
+}
+
+export function isTerminalRunStatus(status: CursorRunStatus) {
+  return status === 'FINISHED' || status === 'ERROR' || status === 'CANCELLED' || status === 'EXPIRED';
+}
+
+export function runStatusError(status: CursorRunStatus) {
+  if (status === 'ERROR' || status === 'CANCELLED' || status === 'EXPIRED') {
+    return `Cursor run failed with status ${status}`;
+  }
+  return null;
 }

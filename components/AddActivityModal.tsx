@@ -15,13 +15,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/Themed';
 
-interface AddFoodModalProps {
+interface AddActivityModalProps {
   visible: boolean;
   onClose: () => void;
   onSubmit: (text: string) => Promise<void>;
 }
 
-export function AddFoodModal({ visible, onClose, onSubmit }: AddFoodModalProps) {
+export function AddActivityModal({ visible, onClose, onSubmit }: AddActivityModalProps) {
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const insets = useSafeAreaInsets();
@@ -37,7 +37,7 @@ export function AddFoodModal({ visible, onClose, onSubmit }: AddFoodModalProps) 
       onClose();
     } catch (error) {
       Alert.alert(
-        'Could not start parse',
+        'Could not start estimate',
         error instanceof Error ? error.message : 'Unknown error',
       );
     } finally {
@@ -58,15 +58,14 @@ export function AddFoodModal({ visible, onClose, onSubmit }: AddFoodModalProps) 
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.sheetContent}>
-            <Text style={styles.title}>Log food</Text>
+            <Text style={styles.title}>Log activity</Text>
             <Text style={styles.subtitle}>
-              Describe what you ate, or use a name from My Foods (e.g. &quot;usual shake&quot;). Cursor
-              will estimate calories and macros in the background — you can close the app while it
-              works.
+              What did you do today? Include how active you were on a scale of 0–100. Cursor will
+              estimate your daily BMR and activity burn using your height and weight.
             </Text>
             <TextInput
               style={styles.input}
-              placeholder='e.g. "2 eggs, toast with butter, and black coffee for breakfast"'
+              placeholder={'e.g. "Morning run 3 miles, desk job all afternoon, evening walk. Activity: 55/100"'}
               placeholderTextColor="#9CA3AF"
               value={text}
               onChangeText={setText}
@@ -96,36 +95,20 @@ export function AddFoodModal({ visible, onClose, onSubmit }: AddFoodModalProps) 
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
+  overlay: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '85%',
   },
-  sheetContent: {
-    padding: 20,
-    gap: 12,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  subtitle: {
-    color: '#6B7280',
-    lineHeight: 20,
-  },
+  sheetContent: { padding: 20, gap: 12 },
+  title: { fontSize: 20, fontWeight: '700', color: '#111827' },
+  subtitle: { color: '#6B7280', lineHeight: 20 },
   input: {
-    minHeight: 100,
-    maxHeight: 160,
+    minHeight: 120,
+    maxHeight: 180,
     borderWidth: 1,
     borderColor: '#D1D5DB',
     borderRadius: 12,
@@ -134,10 +117,7 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontSize: 16,
   },
-  actions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
+  actions: { flexDirection: 'row', gap: 12 },
   secondaryButton: {
     flex: 1,
     borderRadius: 12,
@@ -146,22 +126,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
   },
-  secondaryText: {
-    color: '#374151',
-    fontWeight: '600',
-  },
+  secondaryText: { color: '#374151', fontWeight: '600' },
   primaryButton: {
     flex: 1.4,
     borderRadius: 12,
-    backgroundColor: '#059669',
+    backgroundColor: '#2563EB',
     paddingVertical: 14,
     alignItems: 'center',
   },
-  disabledButton: {
-    opacity: 0.7,
-  },
-  primaryText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
+  disabledButton: { opacity: 0.7 },
+  primaryText: { color: '#FFFFFF', fontWeight: '700' },
 });

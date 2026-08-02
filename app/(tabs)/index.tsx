@@ -1,62 +1,34 @@
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Link } from 'expo-router';
 
 import { AddFoodModal } from '@/components/AddFoodModal';
+import { ActivityBurnCard } from '@/components/ActivityBurnCard';
 import { DailySummaryCard } from '@/components/DailySummaryCard';
 import { FoodEntryList } from '@/components/FoodEntryList';
+import { InProgressParseList } from '@/components/InProgressParseList';
+import { LogDateSelector } from '@/components/LogDateSelector';
 import { Text } from '@/components/Themed';
+import { useParseJobs } from '@/context/ParseJobsContext';
 import { useFood } from '@/context/FoodContext';
-import { useSavedFoods } from '@/context/SavedFoodsContext';
-import { parseNaturalLanguage } from '@/services/cursorParser';
-import { inferMealType } from '@/utils/meal';
-import type { MealType } from '@/types/food';
 
 export default function TodayScreen() {
-  const { todaySummary, todayEntries, addEntries, editEntry, removeEntry } = useFood();
-  const { foods: savedFoods } = useSavedFoods();
+  const { today, logDate, setLogDate, todaySummary, todayActivityBurn, todayEntries, editEntry, removeEntry } =
+    useFood();
+  const { displayJobs, submitParse, dismissJob, retryJob } = useParseJobs();
   const [modalVisible, setModalVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   const handleParse = async (text: string) => {
-    setLoading(true);
-    try {
-      const parsed = await parseNaturalLanguage(text, savedFoods);
-      await addEntries(
-        parsed.items.map((item) => ({
-          mealType: (item.mealType ?? inferMealType(text)) as MealType,
-          name: item.name,
-          calories: item.calories,
-          protein: item.protein,
-          carbs: item.carbs,
-          fat: item.fat,
-          caloriesMin: item.caloriesMin,
-          caloriesMax: item.caloriesMax,
-          proteinMin: item.proteinMin,
-          proteinMax: item.proteinMax,
-          carbsMin: item.carbsMin,
-          carbsMax: item.carbsMax,
-          fatMin: item.fatMin,
-          fatMax: item.fatMax,
-          source: 'natural_language' as const,
-        })),
-        { rawInput: text },
-      );
-    } catch (error) {
-      Alert.alert(
-        'Could not parse food',
-        error instanceof Error ? error.message : 'Unknown error',
-      );
-    } finally {
-      setLoading(false);
-    }
+    await submitParse(text);
   };
 
   return (
     <>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <Text style={styles.heading}>Today</Text>
+        <LogDateSelector logDate={logDate} today={today} onChange={setLogDate} />
         <DailySummaryCard summary={todaySummary} />
+        <ActivityBurnCard summary={todayActivityBurn} />
         <View style={styles.actions}>
           <Pressable style={styles.primaryAction} onPress={() => setModalVisible(true)}>
             <Text style={styles.primaryActionText}>Log with natural language</Text>
@@ -67,17 +39,13 @@ export default function TodayScreen() {
             </Pressable>
           </Link>
         </View>
+        <InProgressParseList jobs={displayJobs} onDismiss={dismissJob} onRetry={retryJob} />
         <Text style={styles.sectionTitle}>Food</Text>
-        <FoodEntryList
-          entries={todayEntries}
-          onDelete={removeEntry}
-          onEdit={editEntry}
-        />
+        <FoodEntryList entries={todayEntries} onDelete={removeEntry} onEdit={editEntry} />
       </ScrollView>
       <AddFoodModal
         visible={modalVisible}
-        loading={loading}
-        onClose={() => !loading && setModalVisible(false)}
+        onClose={() => setModalVisible(false)}
         onSubmit={handleParse}
       />
     </>
