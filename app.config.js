@@ -2,6 +2,11 @@
 const base = require('./app.json');
 
 const isEasBuild = process.env.EAS_BUILD === 'true';
+const railwayPublicDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
+const stravaOAuthRedirectUri = railwayPublicDomain
+  ? `https://${railwayPublicDomain}/strava/oauth/callback`
+  : 'http://localhost';
+const stravaCallbackDomain = railwayPublicDomain ?? 'localhost';
 
 const easOnlyPlugins = [
   'expo-dev-client',
@@ -22,7 +27,9 @@ module.exports = {
     plugins: isEasBuild ? [...base.expo.plugins, ...easOnlyPlugins] : base.expo.plugins,
     extra: {
       ...base.expo.extra,
-      buildVersion: '2026-08-02-activity-score-copy-r2',
+      buildVersion: '2026-08-02-strava-oauth-callback',
+      stravaOAuthRedirectUri,
+      stravaCallbackDomain,
     },
   },
 };

@@ -1,3 +1,5 @@
+import Constants from 'expo-constants';
+import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -10,6 +12,23 @@ const STRAVA_AUTH_URL = 'https://www.strava.com/oauth/mobile/authorize';
 const STRAVA_TOKEN_URL = 'https://www.strava.com/oauth/token';
 const STRAVA_API = 'https://www.strava.com/api/v3';
 const STRAVA_REDIRECT_URI = 'http://localhost';
+
+function readExtraString(key: string) {
+  const value = (Constants.expoConfig?.extra as Record<string, unknown> | undefined)?.[key];
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+export function getStravaCallbackDomain() {
+  return readExtraString('stravaCallbackDomain') ?? 'localhost';
+}
+
+export function getStravaRedirectUri() {
+  return readExtraString('stravaOAuthRedirectUri') ?? STRAVA_REDIRECT_URI;
+}
+
+export function getStravaReturnUrl() {
+  return Linking.createURL('strava');
+}
 
 const CLIENT_ID_KEY = 'strava_client_id';
 const CLIENT_SECRET_KEY = 'strava_client_secret';
@@ -44,11 +63,6 @@ interface StravaActivityResponse {
   average_heartrate?: number | null;
 }
 
-export function getStravaRedirectUri() {
-  // Strava only accepts http/https URLs within the app's Authorization Callback Domain.
-  // Set callback domain to "localhost" at strava.com/settings/api.
-  return STRAVA_REDIRECT_URI;
-}
 
 export async function getStravaCredentials() {
   const clientId = await SecureStore.getItemAsync(CLIENT_ID_KEY);
@@ -138,12 +152,16 @@ export async function connectStrava() {
   }
 
   const redirectUri = getStravaRedirectUri();
+  const returnUrl = getStravaReturnUrl();
   const authUrl =
     `${STRAVA_AUTH_URL}?client_id=${encodeURIComponent(clientId)}` +
     `&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}` +
-    `&approval_prompt=auto&scope=${encodeURIComponent(STRAVA_SCOPES.join(','))}`;
+    `&approval_prompt=auto&scope=${encodeURIComponent(STRAVA_SCOPES.join(','))}` +
+    `&state=${encodeURIComponent(returnUrl)}`;
 
-  const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+  const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl, {
+    preferEphemeralSession: true,
+  });
   if (result.type !== 'success' || !result.url) {
     throw new Error('Strava authorization was cancelled.');
   }

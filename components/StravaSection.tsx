@@ -18,7 +18,7 @@ interface StravaConnectCardProps {
 }
 
 export function StravaConnectCard({ compact = false }: StravaConnectCardProps) {
-  const { connection, redirectUri, connect, disconnect } = useStrava();
+  const { connection, redirectUri, callbackDomain, connect, disconnect } = useStrava();
   const [loading, setLoading] = useState(false);
 
   const handleConnect = async () => {
@@ -78,7 +78,7 @@ export function StravaConnectCard({ compact = false }: StravaConnectCardProps) {
           {!compact ? (
             <>
               <Text style={styles.hint}>
-                Set Strava Authorization Callback Domain to localhost, then use:
+                Set Strava Authorization Callback Domain to {callbackDomain}, then use:
               </Text>
               <CopyableText value={redirectUri} />
             </>

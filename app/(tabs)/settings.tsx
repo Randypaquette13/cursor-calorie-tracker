@@ -15,6 +15,7 @@ import { StravaConnectCard } from '@/components/StravaSection';
 import { clearApiKey, getStoredApiKey, saveApiKey } from '@/services/cursorParser';
 import {
   clearStravaCredentials,
+  getStravaCallbackDomain,
   getStravaCredentials,
   getStravaRedirectUri,
   saveStravaCredentials,
@@ -27,6 +28,7 @@ export default function SettingsScreen() {
   const [stravaClientSecret, setStravaClientSecret] = useState('');
   const [stravaSaved, setStravaSaved] = useState(false);
   const redirectUri = getStravaRedirectUri();
+  const stravaCallbackDomain = getStravaCallbackDomain();
   const buildVersion =
     (Constants.expoConfig?.extra as { buildVersion?: string } | undefined)?.buildVersion ??
     'unknown';
@@ -131,8 +133,8 @@ export default function SettingsScreen() {
         <Text style={styles.cardBody}>
           Create an app at strava.com/settings/api, then paste your Client ID and Client Secret
           below. Set Authorization Callback Domain to{' '}
-          <Text style={styles.inlineMono}>localhost</Text>, then paste this Authorization
-          Redirect URL:
+          <Text style={styles.inlineMono}>{stravaCallbackDomain}</Text>, then paste this
+          Authorization Redirect URL:
         </Text>
         <CopyableText value={redirectUri} />
         <TextInput
