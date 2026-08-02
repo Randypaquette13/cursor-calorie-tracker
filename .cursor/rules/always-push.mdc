@@ -1,0 +1,19 @@
+---
+description: Mandatory git workflow — always commit and push after every code change
+alwaysApply: true
+---
+
+# Always push after every change
+
+When the user asks you to make a change (fix, feature, config, assets, etc.):
+
+1. **Implement** the change
+2. **Commit** with a clear message on a `cursor/<descriptive-name>-8262` branch
+3. **Push** to origin immediately: `git push -u origin <branch-name>`
+4. Only then tell the user the work is done
+
+Never leave changes only local or uncommitted. Never say "done" without a successful push.
+
+If push fails, retry with exponential backoff (4s, 8s, 16s, 32s) up to 4 times, then report the failure.
+
+When multiple changes stack, merge PRs to `main` when the user asks to ship or merge.
