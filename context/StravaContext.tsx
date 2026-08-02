@@ -5,6 +5,7 @@ import {
   disconnectStrava,
   fetchStravaActivitiesForDate,
   getStravaConnectionInfo,
+  getStravaCallbackDomain,
   getStravaRedirectUri,
 } from '@/services/strava';
 import type { StravaActivitySummary, StravaConnectionInfo } from '@/types/strava';
@@ -12,6 +13,7 @@ import type { StravaActivitySummary, StravaConnectionInfo } from '@/types/strava
 interface StravaContextValue {
   connection: StravaConnectionInfo;
   redirectUri: string;
+  callbackDomain: string;
   refreshConnection: () => Promise<void>;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
@@ -57,6 +59,7 @@ export function StravaProvider({ children }: { children: React.ReactNode }) {
     () => ({
       connection,
       redirectUri: getStravaRedirectUri(),
+      callbackDomain: getStravaCallbackDomain(),
       refreshConnection,
       connect,
       disconnect,
