@@ -6,28 +6,24 @@ import { ActivityProvider, useActivity } from '@/context/ActivityContext';
 function ActivityJobsInner({ children }: { children: React.ReactNode }) {
   const { logDate, refresh: refreshFood } = useFood();
   const { profile, latestWeight } = useProfile();
-  const { addActivityEntry, refreshForDate } = useActivity();
+  const { addActivityEntry } = useActivity();
 
   return (
     <ActivityJobsProvider
       logDate={logDate}
       heightCm={profile.heightCm}
       weightKg={latestWeight?.weightKg ?? null}
-      onParsed={async (entry) => {
-        await addActivityEntry(entry);
-        await refreshForDate(logDate);
-        await refreshFood();
-      }}>
+      onParsed={addActivityEntry}>
       {children}
     </ActivityJobsProvider>
   );
 }
 
 export function ActivityJobsBridge({ children }: { children: React.ReactNode }) {
-  const { logDate } = useFood();
+  const { logDate, refresh: refreshFood } = useFood();
 
   return (
-    <ActivityProvider date={logDate}>
+    <ActivityProvider date={logDate} onChanged={refreshFood}>
       <ActivityJobsInner>{children}</ActivityJobsInner>
     </ActivityProvider>
   );
