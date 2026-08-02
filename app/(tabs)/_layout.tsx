@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
+import { Pressable } from 'react-native';
 
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 
@@ -49,7 +50,16 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color }) => <Ionicons name="settings" size={24} color={color} />,
+          href: null,
+          headerShown: true,
+          headerLeft: () => (
+            <Pressable
+              hitSlop={12}
+              onPress={() => router.back()}
+              style={{ marginLeft: 4, padding: 4 }}>
+              <Ionicons name="chevron-back" size={24} color="#059669" />
+            </Pressable>
+          ),
         }}
       />
     </Tabs>
