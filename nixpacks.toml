@@ -8,4 +8,4 @@ cmds = ["npm ci"]
 cmds = ["node scripts/ping-brrr.mjs || true"]
 
 [start]
-cmd = "node scripts/railway-start.mjs"
+cmd = "npm run start:railway"
