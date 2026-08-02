@@ -10,7 +10,7 @@ interface SettingsLinkCardProps {
 
 export function SettingsLinkCard({ compact = false }: SettingsLinkCardProps) {
   return (
-    <Link href="/(tabs)/settings" asChild>
+    <Link href="/settings" asChild>
       <Pressable style={[styles.card, compact && styles.cardCompact]}>
         <View style={styles.iconWrap}>
           <Ionicons name="settings-outline" size={22} color="#374151" />
