@@ -61,6 +61,8 @@ export interface DailySummary {
   fatMin: number;
   fatMax: number;
   entryCount: number;
+  activityBurn: number;
+  activityEntryCount: number;
 }
 
 export interface ParsedFoodItem {
