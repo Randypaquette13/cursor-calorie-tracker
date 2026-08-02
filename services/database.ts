@@ -75,6 +75,8 @@ function emptySummary(date: string): DailySummary {
     fatMin: 0,
     fatMax: 0,
     entryCount: 0,
+    activityBurn: 0,
+    activityEntryCount: 0,
   };
 }
 
@@ -94,6 +96,8 @@ function mapSummaryRow(date: string, row: Record<string, unknown>): DailySummary
     fatMin: row.fat_min as number,
     fatMax: row.fat_max as number,
     entryCount: row.entry_count as number,
+    activityBurn: (row.activity_burn as number | undefined) ?? 0,
+    activityEntryCount: (row.activity_entry_count as number | undefined) ?? 0,
   };
 }
 
@@ -410,10 +414,45 @@ export async function getDailySummary(date: string): Promise<DailySummary> {
 export async function getHistorySummaries(limit = 90): Promise<DailySummary[]> {
   const db = await ensureDb();
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    `SELECT ${SUMMARY_SELECT}
-     FROM food_entries
-     GROUP BY date
-     ORDER BY date DESC
+    `WITH all_dates AS (
+       SELECT date FROM food_entries
+       UNION
+       SELECT date FROM activity_entries
+     ),
+     food_by_day AS (
+       SELECT ${SUMMARY_SELECT}
+       FROM food_entries
+       GROUP BY date
+     ),
+     activity_by_day AS (
+       SELECT
+         date,
+         COALESCE(SUM(total_burned_calories), 0) AS activity_burn,
+         COUNT(*) AS activity_entry_count
+       FROM activity_entries
+       GROUP BY date
+     )
+     SELECT
+       d.date,
+       COALESCE(f.calories, 0) AS calories,
+       COALESCE(f.protein, 0) AS protein,
+       COALESCE(f.carbs, 0) AS carbs,
+       COALESCE(f.fat, 0) AS fat,
+       COALESCE(f.calories_min, 0) AS calories_min,
+       COALESCE(f.calories_max, 0) AS calories_max,
+       COALESCE(f.protein_min, 0) AS protein_min,
+       COALESCE(f.protein_max, 0) AS protein_max,
+       COALESCE(f.carbs_min, 0) AS carbs_min,
+       COALESCE(f.carbs_max, 0) AS carbs_max,
+       COALESCE(f.fat_min, 0) AS fat_min,
+       COALESCE(f.fat_max, 0) AS fat_max,
+       COALESCE(f.entry_count, 0) AS entry_count,
+       COALESCE(a.activity_burn, 0) AS activity_burn,
+       COALESCE(a.activity_entry_count, 0) AS activity_entry_count
+     FROM all_dates d
+     LEFT JOIN food_by_day f ON f.date = d.date
+     LEFT JOIN activity_by_day a ON a.date = d.date
+     ORDER BY d.date DESC
      LIMIT ?`,
     [limit],
   );

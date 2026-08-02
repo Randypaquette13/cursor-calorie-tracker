@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Link } from 'expo-router';
 
+import { ActivityBurnCard } from '@/components/ActivityBurnCard';
+import { ActivityEntryList } from '@/components/ActivityEntryList';
 import { AddFoodModal } from '@/components/AddFoodModal';
 import { DailySummaryCard } from '@/components/DailySummaryCard';
 import { FoodEntryList } from '@/components/FoodEntryList';
@@ -10,6 +12,7 @@ import { InProgressParseList } from '@/components/InProgressParseList';
 import { LogDateSelector } from '@/components/LogDateSelector';
 import { Text } from '@/components/Themed';
 import { useFood } from '@/context/FoodContext';
+import { useActivity } from '@/context/ActivityContext';
 import { useParseJobs } from '@/context/ParseJobsContext';
 import { formatCaloriesEstimate, formatMacroEstimate } from '@/utils/nutrition';
 
@@ -25,7 +28,10 @@ export default function HistoryScreen() {
     setLogDate,
     removeEntry,
     editEntry,
+    refresh,
   } = useFood();
+  const { burnSummary: historyActivityBurn, entries: historyActivityEntries, removeActivityEntry } =
+    useActivity();
   const { displayJobs, submitParse, dismissJob, retryJob } = useParseJobs();
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -46,6 +52,11 @@ export default function HistoryScreen() {
     await submitParse(text);
   };
 
+  const handleDeleteActivity = async (id: number) => {
+    await removeActivityEntry(id);
+    await refresh();
+  };
+
   return (
     <>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -55,11 +66,15 @@ export default function HistoryScreen() {
         <View style={styles.historyList}>
           {history.length === 0 ? (
             <View style={styles.emptyHistory}>
-              <Text style={styles.emptyHistoryText}>Your logged days will appear here.</Text>
+              <Text style={styles.emptyHistoryText}>
+                Days with food or activity logged will appear here.
+              </Text>
             </View>
           ) : (
             history.map((day) => {
               const selected = day.date === historySelectedDate;
+              const hasFood = day.entryCount > 0;
+              const hasActivity = day.activityEntryCount > 0;
               return (
                 <Pressable
                   key={day.date}
@@ -70,11 +85,19 @@ export default function HistoryScreen() {
                       {day.date === today ? 'Today' : day.date}
                     </Text>
                     <Text style={styles.historyMeta}>
-                      {day.entryCount} entries · P {formatMacroEstimate(day.protein)} · C{' '}
-                      {formatMacroEstimate(day.carbs)} · F {formatMacroEstimate(day.fat)}
+                      {hasFood
+                        ? `${day.entryCount} food · P ${formatMacroEstimate(day.protein)} · C ${formatMacroEstimate(day.carbs)} · F ${formatMacroEstimate(day.fat)}`
+                        : 'No food logged'}
+                      {hasActivity
+                        ? `${hasFood ? ' · ' : ''}${day.activityEntryCount} activity · ${Math.round(day.activityBurn)} kcal burned`
+                        : ''}
                     </Text>
                   </View>
-                  <Text style={styles.historyCalories}>{formatCaloriesEstimate(day.calories)}</Text>
+                  {hasFood ? (
+                    <Text style={styles.historyCalories}>{formatCaloriesEstimate(day.calories)}</Text>
+                  ) : hasActivity ? (
+                    <Text style={styles.historyBurn}>{Math.round(day.activityBurn)} burned</Text>
+                  ) : null}
                 </Pressable>
               );
             })
@@ -95,7 +118,14 @@ export default function HistoryScreen() {
         </View>
         <InProgressParseList jobs={displayJobs} onDismiss={dismissJob} onRetry={retryJob} />
         <DailySummaryCard summary={historySummary} title="Day summary" />
+        <ActivityBurnCard summary={historyActivityBurn} title="Activity burn" />
+        <Text style={styles.sectionTitle}>Food</Text>
         <FoodEntryList entries={historyEntries} onDelete={removeEntry} onEdit={editEntry} />
+        <Text style={styles.sectionTitle}>Activity</Text>
+        <ActivityEntryList
+          entries={historyActivityEntries}
+          onDelete={handleDeleteActivity}
+        />
       </ScrollView>
       <AddFoodModal
         visible={modalVisible}
@@ -161,6 +191,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#059669',
   },
+  historyBurn: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
   emptyHistory: {
     backgroundColor: '#F3F4F6',
     borderRadius: 14,
@@ -175,6 +210,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
     marginTop: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
   },
   actions: {
     gap: 10,

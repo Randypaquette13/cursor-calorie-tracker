@@ -76,6 +76,8 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
     fatMin: 0,
     fatMax: 0,
     entryCount: 0,
+    activityBurn: 0,
+    activityEntryCount: 0,
   });
   const [historyEntries, setHistoryEntries] = useState<FoodEntry[]>([]);
   const [historySummary, setHistorySummary] = useState<DailySummary>({
@@ -93,6 +95,8 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
     fatMin: 0,
     fatMax: 0,
     entryCount: 0,
+    activityBurn: 0,
+    activityEntryCount: 0,
   });
   const [history, setHistory] = useState<DailySummary[]>([]);
   const [todayActivityBurn, setTodayActivityBurn] = useState<ActivityBurnSummary>({
