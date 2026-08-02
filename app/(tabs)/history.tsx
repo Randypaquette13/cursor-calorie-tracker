@@ -14,6 +14,7 @@ import { Text } from '@/components/Themed';
 import { useFood } from '@/context/FoodContext';
 import { useActivity } from '@/context/ActivityContext';
 import { useParseJobs } from '@/context/ParseJobsContext';
+import { useTabBar } from '@/context/TabBarContext';
 import { formatCaloriesEstimate, formatMacroEstimate } from '@/utils/nutrition';
 import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 
@@ -33,6 +34,7 @@ export default function HistoryScreen() {
   const { burnSummary: historyActivityBurn, entries: historyActivityEntries, removeActivityEntry } =
     useActivity();
   const { displayJobs, submitParse, dismissJob, retryJob } = useParseJobs();
+  const { onScroll } = useTabBar();
   const [modalVisible, setModalVisible] = useState(false);
 
   const selectDate = (date: string) => {
@@ -54,7 +56,11 @@ export default function HistoryScreen() {
 
   return (
     <>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        onScroll={onScroll}
+        scrollEventThrottle={16}>
         <Text style={styles.heading}>History</Text>
         <Text style={styles.subheading}>Tap a day to review what you logged.</Text>
 
