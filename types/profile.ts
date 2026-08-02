@@ -18,6 +18,7 @@ export interface ActivityEntry {
   activityCalories: number;
   totalBurnedCalories: number;
   summary: string | null;
+  stravaActivitiesJson: string | null;
   createdAt: string;
 }
 
@@ -29,6 +30,7 @@ export interface ActivityEntryInput {
   activityCalories: number;
   totalBurnedCalories: number;
   summary?: string | null;
+  stravaActivitiesJson?: string | null;
 }
 
 export type ActivityParseJobStatus = 'queued' | 'running' | 'completed' | 'failed';
@@ -41,6 +43,7 @@ export interface ActivityParseJob {
   agentId: string | null;
   runId: string | null;
   errorMessage: string | null;
+  stravaActivitiesJson: string | null;
   createdAt: string;
   completedAt: string | null;
 }

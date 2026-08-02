@@ -20,7 +20,7 @@ import type {
 import { createLogGroupId } from '@/utils/id';
 
 const DB_NAME = 'cursor_calorie_tracker.db';
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 const RANGE_COLUMNS = [
   ['calories_min', 'REAL'],
@@ -214,6 +214,9 @@ async function runMigrations() {
   for (const [column, definition] of RANGE_COLUMNS) {
     await ensureColumn(db, 'food_entries', column, definition);
   }
+
+  await ensureColumn(db, 'activity_entries', 'strava_activities_json', 'TEXT');
+  await ensureColumn(db, 'activity_parse_jobs', 'strava_activities_json', 'TEXT');
 
   const versionRow = await db.getFirstAsync<{ version: number }>(
     `SELECT version FROM schema_version WHERE id = 1`,
@@ -748,6 +751,7 @@ function mapActivityEntryRow(row: Record<string, unknown>): ActivityEntry {
     activityCalories: row.activity_calories as number,
     totalBurnedCalories: row.total_burned_calories as number,
     summary: (row.summary as string | null) ?? null,
+    stravaActivitiesJson: (row.strava_activities_json as string | null) ?? null,
     createdAt: row.created_at as string,
   };
 }
@@ -757,8 +761,8 @@ export async function insertActivityEntry(entry: ActivityEntryInput) {
   const createdAt = new Date().toISOString();
   const result = await db.runAsync(
     `INSERT INTO activity_entries
-      (date, raw_input, activity_score, bmr_calories, activity_calories, total_burned_calories, summary, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      (date, raw_input, activity_score, bmr_calories, activity_calories, total_burned_calories, summary, strava_activities_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       entry.date,
       entry.rawInput,
@@ -767,6 +771,7 @@ export async function insertActivityEntry(entry: ActivityEntryInput) {
       entry.activityCalories,
       entry.totalBurnedCalories,
       entry.summary ?? null,
+      entry.stravaActivitiesJson ?? null,
       createdAt,
     ],
   );
@@ -775,6 +780,7 @@ export async function insertActivityEntry(entry: ActivityEntryInput) {
     ...entry,
     activityScore: entry.activityScore ?? null,
     summary: entry.summary ?? null,
+    stravaActivitiesJson: entry.stravaActivitiesJson ?? null,
     createdAt,
   } satisfies ActivityEntry;
 }
@@ -823,18 +829,23 @@ function mapActivityParseJobRow(row: Record<string, unknown>): ActivityParseJob 
     agentId: (row.agent_id as string | null) ?? null,
     runId: (row.run_id as string | null) ?? null,
     errorMessage: (row.error_message as string | null) ?? null,
+    stravaActivitiesJson: (row.strava_activities_json as string | null) ?? null,
     createdAt: row.created_at as string,
     completedAt: (row.completed_at as string | null) ?? null,
   };
 }
 
-export async function insertActivityParseJob(date: string, rawInput: string) {
+export async function insertActivityParseJob(
+  date: string,
+  rawInput: string,
+  stravaActivitiesJson?: string | null,
+) {
   const db = await ensureDb();
   const createdAt = new Date().toISOString();
   const result = await db.runAsync(
-    `INSERT INTO activity_parse_jobs (date, raw_input, status, created_at)
-     VALUES (?, ?, 'queued', ?)`,
-    [date, rawInput, createdAt],
+    `INSERT INTO activity_parse_jobs (date, raw_input, status, strava_activities_json, created_at)
+     VALUES (?, ?, 'queued', ?, ?)`,
+    [date, rawInput, stravaActivitiesJson ?? null, createdAt],
   );
   return {
     id: result.lastInsertRowId,
@@ -844,6 +855,7 @@ export async function insertActivityParseJob(date: string, rawInput: string) {
     agentId: null,
     runId: null,
     errorMessage: null,
+    stravaActivitiesJson: stravaActivitiesJson ?? null,
     createdAt,
     completedAt: null,
   } satisfies ActivityParseJob;

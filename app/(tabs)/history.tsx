@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Link } from 'expo-router';
 
@@ -29,9 +29,10 @@ export default function HistoryScreen() {
   const { displayJobs, submitParse, dismissJob, retryJob } = useParseJobs();
   const [modalVisible, setModalVisible] = useState(false);
 
-  useEffect(() => {
-    setLogDate(historySelectedDate);
-  }, [historySelectedDate, setLogDate]);
+  const selectDate = (date: string) => {
+    setHistorySelectedDate(date);
+    setLogDate(date);
+  };
 
   const selectedLabel = useMemo(() => {
     try {
@@ -63,7 +64,7 @@ export default function HistoryScreen() {
                 <Pressable
                   key={day.date}
                   style={[styles.historyItem, selected && styles.historyItemSelected]}
-                  onPress={() => setHistorySelectedDate(day.date)}>
+                  onPress={() => selectDate(day.date)}>
                   <View style={styles.historyCopy}>
                     <Text style={styles.historyDate}>
                       {day.date === today ? 'Today' : day.date}
@@ -81,7 +82,7 @@ export default function HistoryScreen() {
         </View>
 
         <Text style={styles.detailTitle}>{selectedLabel}</Text>
-        <LogDateSelector logDate={logDate} today={today} onChange={setHistorySelectedDate} />
+        <LogDateSelector logDate={logDate} today={today} onChange={selectDate} />
         <View style={styles.actions}>
           <Pressable style={styles.primaryAction} onPress={() => setModalVisible(true)}>
             <Text style={styles.primaryActionText}>Log food to this day</Text>

@@ -2,16 +2,18 @@ import * as SecureStore from 'expo-secure-store';
 
 import { getStoredApiKey, fetchRunSnapshot, runStatusError } from '@/services/cursorParser';
 import type { ParsedActivityResponse } from '@/types/profile';
+import type { StravaActivitySummary } from '@/types/strava';
 import { formatHeightCm, formatWeightKg } from '@/utils/bodyMetrics';
+import { formatStravaActivitiesForPrompt, parseStravaActivitiesJson } from '@/utils/strava';
 
 const API_BASE = 'https://api.cursor.com/v1';
 const ACTIVITY_AGENT_ID_KEY = 'cursor_activity_agent_id';
 const ACTIVITY_PARSER_VERSION_KEY = 'cursor_activity_parser_version';
-const ACTIVITY_PARSER_VERSION = '1';
+const ACTIVITY_PARSER_VERSION = '2';
 
 const SYSTEM_PROMPT = `You are a daily calorie expenditure estimation assistant.
 
-Given the user's height, weight, and a free-text description of what they did today (including an activity level score from 0 to 100), estimate their whole-day calorie burn.
+Given the user's height, weight, a free-text description of what they did today (including an activity level score from 0 to 100), and any Strava activities recorded that day, estimate their whole-day calorie burn.
 
 Respond with ONLY valid JSON (no markdown, no commentary) in this exact shape:
 {
@@ -25,7 +27,7 @@ Respond with ONLY valid JSON (no markdown, no commentary) in this exact shape:
 Rules:
 - Compute BMR using Mifflin-St Jeor with the provided height and weight. Assume age 30 and sex male unless the user states otherwise.
 - bmrCalories is the estimated basal metabolic rate for the full day.
-- activityCalories is additional calories burned from movement/exercise beyond a sedentary day, informed by the activity description and the 0-100 score.
+- activityCalories is additional calories burned from movement/exercise beyond a sedentary day, informed by the activity description, Strava workout data when provided, and the 0-100 score.
 - totalBurnedCalories must equal bmrCalories + activityCalories (round to whole numbers).
 - Extract activityScore from the user's text when they provide a 0-100 value; otherwise infer a reasonable score from their description.
 - activityScore must be between 0 and 100.
@@ -88,12 +90,14 @@ function buildInitialActivityPrompt(
   input: string,
   heightCm: number,
   weightKg: number,
+  stravaActivities: StravaActivitySummary[] = [],
 ): string {
   return `${SYSTEM_PROMPT}
 
 User stats:
 - Height: ${formatHeightCm(heightCm)} (${Math.round(heightCm)} cm)
 - Weight: ${formatWeightKg(weightKg)} (${Math.round(weightKg * 10) / 10} kg)
+${formatStravaActivitiesForPrompt(stravaActivities)}
 
 Activity description:
 ${input}`;
@@ -103,10 +107,12 @@ function buildFollowUpActivityPrompt(
   input: string,
   heightCm: number,
   weightKg: number,
+  stravaActivities: StravaActivitySummary[] = [],
 ): string {
   return `User stats:
 - Height: ${formatHeightCm(heightCm)} (${Math.round(heightCm)} cm)
 - Weight: ${formatWeightKg(weightKg)} (${Math.round(weightKg * 10) / 10} kg)
+${formatStravaActivitiesForPrompt(stravaActivities)}
 
 Activity description:
 ${input}
@@ -118,7 +124,9 @@ export async function startActivityParseRun(
   input: string,
   heightCm: number,
   weightKg: number,
+  stravaActivitiesJson?: string | null,
 ) {
+  const stravaActivities = parseStravaActivitiesJson(stravaActivitiesJson);
   const apiKey = await getStoredApiKey();
   if (!apiKey) {
     throw new Error('Add your Cursor API key in Settings first.');
@@ -126,8 +134,8 @@ export async function startActivityParseRun(
 
   const { agentId, isNewAgent } = await getOrCreateActivityAgent(apiKey);
   const promptText = isNewAgent
-    ? buildInitialActivityPrompt(input, heightCm, weightKg)
-    : buildFollowUpActivityPrompt(input, heightCm, weightKg);
+    ? buildInitialActivityPrompt(input, heightCm, weightKg, stravaActivities)
+    : buildFollowUpActivityPrompt(input, heightCm, weightKg, stravaActivities);
 
   const runData = (await cursorFetch(`/agents/${agentId}/runs`, apiKey, {
     method: 'POST',

@@ -17,6 +17,11 @@ import {
 } from '@/services/activityParser';
 import { getStoredApiKey } from '@/services/cursorParser';
 import {
+  fetchStravaActivitiesForDate,
+  getStravaConnectionInfo,
+  serializeStravaActivities,
+} from '@/services/strava';
+import {
   deleteActivityParseJob,
   getDisplayActivityParseJobs,
   getResumableActivityParseJobs,
@@ -83,6 +88,7 @@ export function ActivityJobsProvider({
         activityCalories: parsed.activityCalories,
         totalBurnedCalories: parsed.totalBurnedCalories,
         summary: parsed.summary,
+        stravaActivitiesJson: job.stravaActivitiesJson,
       });
       await updateActivityParseJob(job.id, {
         status: 'completed',
@@ -153,6 +159,7 @@ export function ActivityJobsProvider({
           job.rawInput,
           heightCm,
           weightKg,
+          job.stravaActivitiesJson,
         );
 
         await updateActivityParseJob(job.id, {
@@ -223,7 +230,19 @@ export function ActivityJobsProvider({
 
   const submitActivityParse = useCallback(
     async (text: string) => {
-      await insertActivityParseJob(logDate, text);
+      let stravaActivitiesJson: string | null = null;
+
+      try {
+        const connection = await getStravaConnectionInfo();
+        if (connection.connected) {
+          const activities = await fetchStravaActivitiesForDate(logDate);
+          stravaActivitiesJson = serializeStravaActivities(activities);
+        }
+      } catch {
+        stravaActivitiesJson = null;
+      }
+
+      await insertActivityParseJob(logDate, text, stravaActivitiesJson);
       await refreshDisplayJobs();
       void processQueue();
     },
