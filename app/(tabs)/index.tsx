@@ -11,12 +11,14 @@ import { LogDateSelector } from '@/components/LogDateSelector';
 import { Text } from '@/components/Themed';
 import { useParseJobs } from '@/context/ParseJobsContext';
 import { useFood } from '@/context/FoodContext';
+import { useTabBar } from '@/context/TabBarContext';
 import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 
 export default function TodayScreen() {
   const { today, logDate, setLogDate, todaySummary, todayActivityBurn, todayEntries, editEntry, removeEntry } =
     useFood();
   const { displayJobs, submitParse, dismissJob, retryJob } = useParseJobs();
+  const { onScroll } = useTabBar();
   const [modalVisible, setModalVisible] = useState(false);
 
   const handleParse = async (text: string) => {
@@ -25,7 +27,11 @@ export default function TodayScreen() {
 
   return (
     <>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        onScroll={onScroll}
+        scrollEventThrottle={16}>
         <Text style={styles.heading}>Today</Text>
         <LogDateSelector logDate={logDate} today={today} onChange={setLogDate} />
         <DailySummaryCard summary={todaySummary} />

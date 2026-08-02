@@ -16,6 +16,7 @@ import { SettingsLinkCard } from '@/components/SettingsLinkCard';
 import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 import { WeightTrendChart } from '@/components/WeightTrendChart';
 import { useProfile } from '@/context/ProfileContext';
+import { useTabBar } from '@/context/TabBarContext';
 import type { WeightEntry } from '@/types/profile';
 import {
   cmToFeetInches,
@@ -46,6 +47,7 @@ function buildHistoryWithDeltas(entries: WeightEntry[]) {
 export default function ProfileScreen() {
   const { profile, latestWeight, weightHistory, setHeightCm, logWeightKg, removeWeightEntry } =
     useProfile();
+  const { onScroll } = useTabBar();
 
   const initialHeight = useMemo(() => {
     if (profile.heightCm == null) return { feet: '5', inches: '10' };
@@ -92,7 +94,11 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      onScroll={onScroll}
+      scrollEventThrottle={16}>
       <View style={styles.headerRow}>
         <Text style={styles.heading}>Profile</Text>
         <Link href="/settings" asChild>

@@ -16,6 +16,7 @@ import { useActivityJobs } from '@/context/ActivityJobsContext';
 import { useFood } from '@/context/FoodContext';
 import { useProfile } from '@/context/ProfileContext';
 import { useStrava } from '@/context/StravaContext';
+import { useTabBar } from '@/context/TabBarContext';
 import type { StravaActivitySummary } from '@/types/strava';
 import { formatHeightCm, formatWeightKg } from '@/utils/bodyMetrics';
 import { ACTIVITY_SCORE_EXPLANATION } from '@/utils/activityScore';
@@ -27,6 +28,7 @@ export default function ActivityScreen() {
   const { entries, burnSummary, removeActivityEntry } = useActivity();
   const { displayJobs, submitActivityParse, dismissJob, retryJob } = useActivityJobs();
   const { connection, loadActivitiesForDate } = useStrava();
+  const { onScroll } = useTabBar();
   const [modalVisible, setModalVisible] = useState(false);
   const [stravaActivities, setStravaActivities] = useState<StravaActivitySummary[]>([]);
   const [stravaLoading, setStravaLoading] = useState(false);
@@ -86,7 +88,11 @@ export default function ActivityScreen() {
 
   return (
     <>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        onScroll={onScroll}
+        scrollEventThrottle={16}>
         <Text style={styles.heading}>Activity</Text>
 
         <LogDateSelector logDate={logDate} today={today} onChange={setLogDate} />

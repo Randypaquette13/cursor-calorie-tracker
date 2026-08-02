@@ -4,6 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SavedFoodModal } from '@/components/SavedFoodModal';
 import { Text } from '@/components/Themed';
 import { useSavedFoods } from '@/context/SavedFoodsContext';
+import { useTabBar } from '@/context/TabBarContext';
 import type { SavedFood } from '@/types/food';
 import { formatFullNutrition } from '@/utils/nutrition';
 import { TAB_BAR_CLEARANCE } from '@/constants/layout';
@@ -20,6 +21,7 @@ function formatNutrition(food: SavedFood) {
 
 export default function MyFoodsScreen() {
   const { foods, addFood, editFood, removeFood } = useSavedFoods();
+  const { onScroll } = useTabBar();
   const [modalVisible, setModalVisible] = useState(false);
   const [editingFood, setEditingFood] = useState<SavedFood | null>(null);
 
@@ -46,7 +48,11 @@ export default function MyFoodsScreen() {
 
   return (
     <>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        onScroll={onScroll}
+        scrollEventThrottle={16}>
         <Text style={styles.heading}>My Foods</Text>
         <Text style={styles.intro}>
           Save foods you eat often. When you log by voice or text, say the name — Cursor will use
