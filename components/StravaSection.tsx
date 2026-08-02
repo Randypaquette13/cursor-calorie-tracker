@@ -77,7 +77,9 @@ export function StravaConnectCard({ compact = false }: StravaConnectCardProps) {
           </Text>
           {!compact ? (
             <>
-              <Text style={styles.hint}>Callback URL for your Strava app:</Text>
+              <Text style={styles.hint}>
+                Set Strava Authorization Callback Domain to localhost, then use:
+              </Text>
               <CopyableText value={redirectUri} />
             </>
           ) : null}

@@ -130,7 +130,9 @@ export default function SettingsScreen() {
         <Text style={styles.cardTitle}>Strava API credentials</Text>
         <Text style={styles.cardBody}>
           Create an app at strava.com/settings/api, then paste your Client ID and Client Secret
-          below. Add this callback URL in your Strava app settings:
+          below. Set Authorization Callback Domain to{' '}
+          <Text style={styles.inlineMono}>localhost</Text>, then paste this Authorization
+          Redirect URL:
         </Text>
         <CopyableText value={redirectUri} />
         <TextInput
@@ -225,6 +227,11 @@ const styles = StyleSheet.create({
   cardBody: {
     color: '#6B7280',
     lineHeight: 21,
+  },
+  inlineMono: {
+    color: '#374151',
+    fontFamily: 'SpaceMono',
+    fontSize: 12,
   },
   input: {
     borderWidth: 1,
