@@ -712,12 +712,16 @@ export async function insertWeightEntry(weightKg: number) {
   } satisfies WeightEntry;
 }
 
-export async function getWeightEntries(limit = 30): Promise<WeightEntry[]> {
+export async function getWeightEntries(limit?: number): Promise<WeightEntry[]> {
   const db = await ensureDb();
-  const rows = await db.getAllAsync<Record<string, unknown>>(
-    `SELECT * FROM weight_entries ORDER BY recorded_at DESC, id DESC LIMIT ?`,
-    [limit],
-  );
+  const rows = limit
+    ? await db.getAllAsync<Record<string, unknown>>(
+        `SELECT * FROM weight_entries ORDER BY recorded_at DESC, id DESC LIMIT ?`,
+        [limit],
+      )
+    : await db.getAllAsync<Record<string, unknown>>(
+        `SELECT * FROM weight_entries ORDER BY recorded_at DESC, id DESC`,
+      );
   return rows.map(mapWeightEntryRow);
 }
 

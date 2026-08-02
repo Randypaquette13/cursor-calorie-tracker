@@ -10,7 +10,9 @@ import {
 } from 'react-native';
 
 import { Text } from '@/components/Themed';
+import { WeightTrendChart } from '@/components/WeightTrendChart';
 import { useProfile } from '@/context/ProfileContext';
+import type { WeightEntry } from '@/types/profile';
 import {
   cmToFeetInches,
   feetInchesToCm,
@@ -19,6 +21,23 @@ import {
   kgToLbs,
   lbsToKg,
 } from '@/utils/bodyMetrics';
+
+function formatWeightDelta(currentKg: number, previousKg: number | null) {
+  if (previousKg == null) return null;
+  const deltaLbs = Math.round(kgToLbs(currentKg) - kgToLbs(previousKg));
+  if (deltaLbs === 0) return 'No change since last weigh-in';
+  const sign = deltaLbs > 0 ? '+' : '';
+  return `${sign}${deltaLbs} lb since last weigh-in`;
+}
+
+function buildHistoryWithDeltas(entries: WeightEntry[]) {
+  const newestFirst = [...entries].sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
+
+  return newestFirst.map((entry, index) => ({
+    entry,
+    deltaLabel: formatWeightDelta(entry.weightKg, newestFirst[index + 1]?.weightKg ?? null),
+  }));
+}
 
 export default function ProfileScreen() {
   const { profile, latestWeight, weightHistory, setHeightCm, logWeightKg, removeWeightEntry } =
@@ -33,6 +52,8 @@ export default function ProfileScreen() {
   const [feet, setFeet] = useState(initialHeight.feet);
   const [inches, setInches] = useState(initialHeight.inches);
   const [weightLbs, setWeightLbs] = useState('');
+
+  const historyWithDeltas = useMemo(() => buildHistoryWithDeltas(weightHistory), [weightHistory]);
 
   useEffect(() => {
     if (profile.heightCm != null) {
@@ -110,7 +131,8 @@ export default function ProfileScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Weight</Text>
         <Text style={styles.cardBody}>
-          Log whenever you weigh yourself. The most recent entry is used for activity estimates.
+          Log whenever you weigh yourself. Every entry is saved to your history and used for
+          activity estimates.
         </Text>
         {latestWeight ? (
           <Text style={styles.currentValue}>
@@ -131,11 +153,20 @@ export default function ProfileScreen() {
         <Pressable style={styles.primaryButton} onPress={handleLogWeight}>
           <Text style={styles.primaryText}>Log weight</Text>
         </Pressable>
+      </View>
 
-        {weightHistory.length > 0 ? (
+      <View style={styles.card}>
+        <View style={styles.historyHeader}>
+          <Text style={styles.cardTitle}>Weight history</Text>
+          {weightHistory.length > 0 ? (
+            <Text style={styles.historyCount}>{weightHistory.length} entries</Text>
+          ) : null}
+        </View>
+        <WeightTrendChart entries={weightHistory} />
+
+        {historyWithDeltas.length > 0 ? (
           <View style={styles.historyList}>
-            <Text style={styles.historyTitle}>Recent weigh-ins</Text>
-            {weightHistory.map((entry) => (
+            {historyWithDeltas.map(({ entry, deltaLabel }) => (
               <Pressable
                 key={entry.id}
                 style={styles.historyItem}
@@ -149,7 +180,22 @@ export default function ProfileScreen() {
                     },
                   ])
                 }>
-                <Text style={styles.historyWeight}>{formatWeightKg(entry.weightKg)}</Text>
+                <View style={styles.historyRow}>
+                  <Text style={styles.historyWeight}>{formatWeightKg(entry.weightKg)}</Text>
+                  {deltaLabel ? (
+                    <Text
+                      style={[
+                        styles.historyDelta,
+                        deltaLabel.startsWith('+')
+                          ? styles.historyDeltaUp
+                          : deltaLabel.startsWith('-')
+                            ? styles.historyDeltaDown
+                            : null,
+                      ]}>
+                      {deltaLabel}
+                    </Text>
+                  ) : null}
+                </View>
                 <Text style={styles.historyDate}>
                   {format(parseISO(entry.recordedAt), 'MMM d, yyyy · h:mm a')}
                 </Text>
@@ -197,14 +243,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryText: { color: '#FFFFFF', fontWeight: '700' },
-  historyList: { gap: 8, marginTop: 4 },
-  historyTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  historyCount: { color: '#6B7280', fontSize: 13, fontWeight: '600' },
+  historyList: { gap: 4, marginTop: 4 },
   historyItem: {
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
-    gap: 2,
+    gap: 4,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
   },
   historyWeight: { fontSize: 16, fontWeight: '600', color: '#111827' },
+  historyDelta: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  historyDeltaUp: { color: '#B45309' },
+  historyDeltaDown: { color: '#047857' },
   historyDate: { color: '#6B7280', fontSize: 13 },
 });
