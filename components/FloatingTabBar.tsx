@@ -32,15 +32,86 @@ function FrostedBackground({ borderRadius }: { borderRadius: number }) {
   );
 }
 
-export function FloatingTabBar({
-  state,
-  navigation,
-  descriptors,
-  position,
-}: MaterialTopTabBarProps) {
+interface TabRowProps extends Pick<MaterialTopTabBarProps, 'state' | 'navigation' | 'descriptors' | 'position'> {
+  compact: boolean;
+  onTabPressed?: () => void;
+}
+
+function TabRow({ state, navigation, descriptors, position, compact, onTabPressed }: TabRowProps) {
+  const [innerWidth, setInnerWidth] = useState(0);
+  const tabWidth = innerWidth > 0 ? innerWidth / state.routes.length : 0;
+
+  return (
+    <View
+      style={styles.inner}
+      onLayout={(event) => setInnerWidth(event.nativeEvent.layout.width)}>
+      {tabWidth > 0 ? (
+        <Animated.View
+          style={[
+            styles.indicator,
+            compact && styles.indicatorCompact,
+            {
+              width: tabWidth,
+              transform: [{ translateX: Animated.multiply(position, tabWidth) }],
+            },
+          ]}
+        />
+      ) : null}
+
+      {state.routes.map((route, index) => {
+        const { options } = descriptors[route.key];
+        const isFocused = state.index === index;
+        const meta = TAB_META[route.name] ?? { icon: 'ellipse' as const, label: route.name };
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name, route.params);
+          }
+          onTabPressed?.();
+        };
+
+        const onLongPress = () => {
+          navigation.emit({ type: 'tabLongPress', target: route.key });
+        };
+
+        return (
+          <Pressable
+            key={route.key}
+            accessibilityRole="button"
+            accessibilityState={isFocused ? { selected: true } : {}}
+            accessibilityLabel={options.tabBarAccessibilityLabel ?? meta.label}
+            onPress={onPress}
+            onLongPress={onLongPress}
+            style={[styles.tab, compact && styles.tabCompact]}>
+            <Ionicons
+              name={meta.icon}
+              size={compact ? 19 : 22}
+              color={isFocused ? ACTIVE_COLOR : INACTIVE_COLOR}
+            />
+            {!compact ? (
+              <Text
+                numberOfLines={1}
+                style={[styles.label, { color: isFocused ? ACTIVE_COLOR : INACTIVE_COLOR }]}>
+                {meta.label}
+              </Text>
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+export function FloatingTabBar(props: MaterialTopTabBarProps) {
+  const { state, navigation } = props;
   const insets = useSafeAreaInsets();
   const { collapsed, setCollapsed } = useTabBar();
-  const [innerWidth, setInnerWidth] = useState(0);
   const collapseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -52,42 +123,54 @@ export function FloatingTabBar({
     }).start();
   }, [collapseAnim, collapsed]);
 
-  const routeCount = state.routes.length;
-  const tabWidth = innerWidth > 0 ? innerWidth / routeCount : 0;
+  // Swiping between tabs expands the bar. The tab-bar props type narrows
+  // navigation to helpers without addListener, but the runtime object has it.
+  useEffect(() => {
+    const nav = navigation as unknown as {
+      addListener?: (event: string, callback: () => void) => () => void;
+    };
+    const unsubscribe = nav.addListener?.('swipeStart', () => {
+      setCollapsed(false);
+    });
+    return unsubscribe;
+  }, [navigation, setCollapsed]);
 
-  const activeRoute = state.routes[state.index];
-  const activeMeta = TAB_META[activeRoute.name] ?? { icon: 'ellipse' as const, label: '' };
+  useEffect(() => {
+    setCollapsed(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.index]);
 
-  const barOpacity = collapseAnim.interpolate({ inputRange: [0, 0.6], outputRange: [1, 0], extrapolate: 'clamp' });
-  const barScale = collapseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.85] });
-  const barTranslate = collapseAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 14] });
+  const barOpacity = collapseAnim.interpolate({
+    inputRange: [0, 0.55],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+  const barScale = collapseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.9] });
+  const barTranslate = collapseAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 12] });
 
-  const dotOpacity = collapseAnim.interpolate({ inputRange: [0.4, 1], outputRange: [0, 1], extrapolate: 'clamp' });
-  const dotScale = collapseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
+  const compactOpacity = collapseAnim.interpolate({
+    inputRange: [0.45, 1],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const compactScale = collapseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] });
 
   return (
     <View
       pointerEvents="box-none"
       style={[styles.wrapper, { bottom: Math.max(insets.bottom, 12) }]}>
-      {/* Collapsed: compact frosted button with the active tab icon */}
+      {/* Collapsed: compact pill with all tabs, icons only */}
       <Animated.View
         pointerEvents={collapsed ? 'auto' : 'none'}
         style={[
-          styles.collapsedWrap,
-          { opacity: dotOpacity, transform: [{ scale: dotScale }] },
+          styles.pillCompact,
+          { opacity: compactOpacity, transform: [{ scale: compactScale }] },
         ]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Expand navigation"
-          onPress={() => setCollapsed(false)}
-          style={styles.collapsedButton}>
-          <FrostedBackground borderRadius={26} />
-          <Ionicons name={activeMeta.icon} size={22} color={ACTIVE_COLOR} />
-          <Text style={styles.collapsedLabel}>{activeMeta.label}</Text>
-        </Pressable>
+        <FrostedBackground borderRadius={22} />
+        <TabRow {...props} compact onTabPressed={() => setCollapsed(false)} />
       </Animated.View>
 
-      {/* Expanded: full frosted pill */}
+      {/* Expanded: full pill with labels */}
       <Animated.View
         pointerEvents={collapsed ? 'none' : 'auto'}
         style={[
@@ -98,65 +181,7 @@ export function FloatingTabBar({
           },
         ]}>
         <FrostedBackground borderRadius={28} />
-        <View
-          style={styles.inner}
-          onLayout={(event) => setInnerWidth(event.nativeEvent.layout.width)}>
-          {tabWidth > 0 ? (
-            <Animated.View
-              style={[
-                styles.indicator,
-                {
-                  width: tabWidth,
-                  transform: [{ translateX: Animated.multiply(position, tabWidth) }],
-                },
-              ]}
-            />
-          ) : null}
-
-          {state.routes.map((route, index) => {
-            const { options } = descriptors[route.key];
-            const isFocused = state.index === index;
-            const meta = TAB_META[route.name] ?? { icon: 'ellipse' as const, label: route.name };
-
-            const onPress = () => {
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              });
-
-              if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(route.name, route.params);
-              }
-            };
-
-            const onLongPress = () => {
-              navigation.emit({ type: 'tabLongPress', target: route.key });
-            };
-
-            return (
-              <Pressable
-                key={route.key}
-                accessibilityRole="button"
-                accessibilityState={isFocused ? { selected: true } : {}}
-                accessibilityLabel={options.tabBarAccessibilityLabel ?? meta.label}
-                onPress={onPress}
-                onLongPress={onLongPress}
-                style={styles.tab}>
-                <Ionicons
-                  name={meta.icon}
-                  size={22}
-                  color={isFocused ? ACTIVE_COLOR : INACTIVE_COLOR}
-                />
-                <Text
-                  numberOfLines={1}
-                  style={[styles.label, { color: isFocused ? ACTIVE_COLOR : INACTIVE_COLOR }]}>
-                  {meta.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <TabRow {...props} compact={false} />
       </Animated.View>
     </View>
   );
@@ -187,6 +212,21 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 12,
   },
+  pillCompact: {
+    position: 'absolute',
+    bottom: 0,
+    width: 260,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(229, 231, 235, 0.9)',
+    paddingHorizontal: 5,
+    paddingVertical: 5,
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    elevation: 10,
+  },
   inner: {
     flexDirection: 'row',
     position: 'relative',
@@ -199,6 +239,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: 'rgba(5, 150, 105, 0.12)',
   },
+  indicatorCompact: {
+    borderRadius: 17,
+  },
   tab: {
     flex: 1,
     alignItems: 'center',
@@ -207,34 +250,13 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 22,
   },
+  tabCompact: {
+    paddingVertical: 8,
+    borderRadius: 17,
+  },
   label: {
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.2,
-  },
-  collapsedWrap: {
-    position: 'absolute',
-    bottom: 0,
-  },
-  collapsedButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 18,
-    paddingVertical: 13,
-    borderRadius: 26,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(229, 231, 235, 0.9)',
-    shadowColor: '#111827',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.14,
-    shadowRadius: 18,
-    elevation: 10,
-    overflow: 'visible',
-  },
-  collapsedLabel: {
-    color: ACTIVE_COLOR,
-    fontSize: 13,
-    fontWeight: '700',
   },
 });
