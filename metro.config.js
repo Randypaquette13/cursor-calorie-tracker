@@ -1,8 +1,6 @@
 const path = require('path');
 const { getDefaultConfig } = require('expo/metro-config');
 
-require('./scripts/ping-brrr-once.cjs').pingBrrrOnce('metro-boot');
-
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 

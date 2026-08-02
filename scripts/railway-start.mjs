@@ -1,11 +1,6 @@
-import { spawn } from 'node:child_process';
-import https from 'node:https';
+import { spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-const WEBHOOK_SECRET =
-  process.env.BRRR_WEBHOOK_SECRET ??
-  'br_usr_6d7e11e27448c0090bcbcc52eb9177975dcd74a10ce84b23ba036c0d6de6b091';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -14,50 +9,21 @@ function log(message) {
   console.log(`[railway-start] ${message}`);
 }
 
-function pingBrrr(source) {
-  const message = `Calorie tracker server restarted (${source}) · ${new Date().toISOString()}`;
-  const body = message;
+function pingBrrrOnce() {
+  log('Sending brrr ping');
 
-  return new Promise((resolve) => {
-    log(`Sending brrr ping (${source})`);
-
-    const req = https.request(
-      {
-        hostname: 'api.brrr.now',
-        port: 443,
-        path: `/v1/${WEBHOOK_SECRET}`,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain; charset=utf-8',
-          'Content-Length': Buffer.byteLength(body),
-        },
-      },
-      (res) => {
-        let responseBody = '';
-        res.on('data', (chunk) => {
-          responseBody += chunk;
-        });
-        res.on('end', () => {
-          log(`brrr HTTP ${res.statusCode}: ${responseBody}`);
-          resolve();
-        });
-      },
-    );
-
-    req.on('error', (error) => {
-      log(`brrr failed: ${error.message}`);
-      resolve();
-    });
-
-    req.setTimeout(15_000, () => {
-      req.destroy();
-      log('brrr timed out after 15s');
-      resolve();
-    });
-
-    req.write(body);
-    req.end();
+  const result = spawnSync(process.execPath, [path.join(__dirname, 'ping-brrr.mjs')], {
+    cwd: ROOT,
+    env: {
+      ...process.env,
+      BRRR_PING_PHASE: 'railway-start',
+    },
+    stdio: 'inherit',
   });
+
+  if (result.status !== 0) {
+    log(`brrr ping exited with code ${result.status ?? 'unknown'}`);
+  }
 }
 
 function requireEnv(name) {
@@ -72,7 +38,7 @@ async function main() {
   log(`boot ${new Date().toISOString()}`);
   log(`cwd ${ROOT}`);
 
-  await pingBrrr('railway-start');
+  pingBrrrOnce();
 
   const port = process.env.PORT ?? '8081';
   const publicDomain = requireEnv('RAILWAY_PUBLIC_DOMAIN');

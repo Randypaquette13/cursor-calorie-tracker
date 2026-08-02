@@ -1,8 +1,6 @@
 /** @type {import('expo/config').ExpoConfig} */
 const base = require('./app.json');
 
-require('./scripts/ping-brrr-once.cjs').pingBrrrOnce('app-config');
-
 const isEasBuild = process.env.EAS_BUILD === 'true';
 
 const easOnlyPlugins = [
