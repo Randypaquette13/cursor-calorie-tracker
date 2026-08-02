@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { format, parseISO } from 'date-fns';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -9,6 +10,7 @@ import { LogDateSelector } from '@/components/LogDateSelector';
 import { StravaActivitiesCard, StravaConnectCard } from '@/components/StravaSection';
 import { SettingsLinkCard } from '@/components/SettingsLinkCard';
 import { Text } from '@/components/Themed';
+import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 import { useActivity } from '@/context/ActivityContext';
 import { useActivityJobs } from '@/context/ActivityJobsContext';
 import { useFood } from '@/context/FoodContext';
@@ -34,7 +36,7 @@ export default function ActivityScreen() {
   const dateLabel = useMemo(() => {
     if (logDate === today) return 'today';
     try {
-      return format(parseISO(logDate), 'MMM d, yyyy');
+      return format(parseISO(logDate), 'MMM d');
     } catch {
       return logDate;
     }
@@ -80,34 +82,83 @@ export default function ActivityScreen() {
     await submitActivityParse(text);
   };
 
+  const hasEntries = burnSummary.entryCount > 0;
+
   return (
     <>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <Text style={styles.heading}>Activity</Text>
-        <Text style={styles.subheading}>
-          Describe your day and rate how it felt: {ACTIVITY_SCORE_EXPLANATION} Cursor estimates total
-          calories burned including BMR. When Strava is connected, workouts for the selected day are
-          included automatically.
-        </Text>
-
-        <View style={styles.statsCard}>
-          <Text style={styles.statsTitle}>Used for estimates</Text>
-          <Text style={styles.statsLine}>Height: {formatHeightCm(profile.heightCm)}</Text>
-          <Text style={styles.statsLine}>
-            Weight: {latestWeight ? formatWeightKg(latestWeight.weightKg) : 'Not logged'}
-          </Text>
-          {!profileReady ? (
-            <Text style={styles.statsWarning}>
-              Set your height in Profile and log your weight before estimating burn.
-            </Text>
-          ) : null}
-        </View>
-
-        <StravaConnectCard compact />
-
-        <SettingsLinkCard compact />
 
         <LogDateSelector logDate={logDate} today={today} onChange={setLogDate} />
+
+        <View style={styles.heroCard}>
+          <View style={styles.heroHeader}>
+            <Text style={styles.heroTitle}>Burn {dateLabel === 'today' ? 'today' : dateLabel}</Text>
+            <View style={styles.heroBadge}>
+              <Ionicons name="flame" size={14} color="#FDBA74" />
+              <Text style={styles.heroBadgeText}>
+                {hasEntries ? `${burnSummary.entryCount} logged` : 'Not logged'}
+              </Text>
+            </View>
+          </View>
+
+          {hasEntries ? (
+            <>
+              <Text style={styles.heroTotal}>
+                {Math.round(burnSummary.totalBurned)}
+                <Text style={styles.heroUnit}> kcal</Text>
+              </Text>
+              <View style={styles.heroBreakdown}>
+                <View style={styles.heroStat}>
+                  <Text style={styles.heroStatLabel}>BMR</Text>
+                  <Text style={styles.heroStatValue}>{Math.round(burnSummary.bmrTotal)}</Text>
+                </View>
+                <View style={styles.heroDivider} />
+                <View style={styles.heroStat}>
+                  <Text style={styles.heroStatLabel}>Activity</Text>
+                  <Text style={styles.heroStatValue}>+{Math.round(burnSummary.activityTotal)}</Text>
+                </View>
+              </View>
+              {stravaSummaryLine ? (
+                <Text style={styles.heroStrava}>{stravaSummaryLine}</Text>
+              ) : null}
+            </>
+          ) : (
+            <Text style={styles.heroEmpty}>
+              Describe your day below and Cursor will estimate total calories burned, including
+              your BMR.
+            </Text>
+          )}
+        </View>
+
+        <Pressable
+          style={[styles.primaryAction, !profileReady && styles.disabledAction]}
+          onPress={() => setModalVisible(true)}
+          disabled={!profileReady}>
+          <Ionicons name="add-circle" size={20} color="#FFFFFF" />
+          <Text style={styles.primaryActionText}>Log activity</Text>
+        </Pressable>
+
+        {!profileReady ? (
+          <View style={styles.warningCard}>
+            <Ionicons name="alert-circle" size={18} color="#B45309" />
+            <Text style={styles.warningText}>
+              Set your height in Profile and log your weight to enable burn estimates.
+            </Text>
+          </View>
+        ) : (
+          <Text style={styles.bodyStatsLine}>
+            Using {formatHeightCm(profile.heightCm)} ·{' '}
+            {latestWeight ? formatWeightKg(latestWeight.weightKg) : ''} · Score scale:{' '}
+            {ACTIVITY_SCORE_EXPLANATION}
+          </Text>
+        )}
+
+        <InProgressActivityParseList
+          jobs={displayJobs}
+          onDismiss={dismissJob}
+          onRetry={retryJob}
+        />
 
         {connection.connected ? (
           <StravaActivitiesCard
@@ -117,34 +168,16 @@ export default function ActivityScreen() {
           />
         ) : null}
 
-        {burnSummary.entryCount > 0 ? (
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>Day burn estimate</Text>
-            <Text style={styles.summaryTotal}>{Math.round(burnSummary.totalBurned)} kcal</Text>
-            <Text style={styles.summaryMeta}>
-              BMR {Math.round(burnSummary.bmrTotal)} · Activity +{Math.round(burnSummary.activityTotal)}
-            </Text>
-            {stravaSummaryLine ? (
-              <Text style={styles.summaryStrava}>{stravaSummaryLine}</Text>
-            ) : null}
-          </View>
+        {entries.length > 0 ? (
+          <>
+            <Text style={styles.sectionTitle}>Logged estimates</Text>
+            <ActivityEntryList entries={entries} onDelete={removeActivityEntry} />
+          </>
         ) : null}
 
-        <Pressable
-          style={[styles.primaryAction, !profileReady && styles.disabledAction]}
-          onPress={() => setModalVisible(true)}
-          disabled={!profileReady}>
-          <Text style={styles.primaryActionText}>Log today&apos;s activity</Text>
-        </Pressable>
-
-        <InProgressActivityParseList
-          jobs={displayJobs}
-          onDismiss={dismissJob}
-          onRetry={retryJob}
-        />
-
-        <Text style={styles.sectionTitle}>Estimates</Text>
-        <ActivityEntryList entries={entries} onDelete={removeActivityEntry} />
+        <Text style={styles.sectionTitle}>Connections</Text>
+        <StravaConnectCard compact />
+        <SettingsLinkCard compact />
       </ScrollView>
 
       <AddActivityModal
@@ -158,39 +191,131 @@ export default function ActivityScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  content: { padding: 20, gap: 16, paddingBottom: 40 },
+  content: { padding: 20, gap: 16, paddingBottom: TAB_BAR_CLEARANCE },
   heading: { fontSize: 28, fontWeight: '700', color: '#111827' },
-  subheading: { color: '#6B7280', lineHeight: 21 },
-  statsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    gap: 6,
+  heroCard: {
+    backgroundColor: '#1D4ED8',
+    borderRadius: 20,
+    padding: 20,
+    gap: 12,
+    shadowColor: '#1D4ED8',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  statsTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  statsLine: { color: '#374151' },
-  statsWarning: { color: '#B45309', marginTop: 4, lineHeight: 20 },
-  summaryCard: {
-    backgroundColor: '#EFF6FF',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    gap: 4,
-  },
-  summaryTitle: { color: '#1D4ED8', fontWeight: '700' },
-  summaryTotal: { fontSize: 28, fontWeight: '700', color: '#1E3A8A' },
-  summaryMeta: { color: '#2563EB' },
-  summaryStrava: { color: '#FC4C02', fontSize: 13, lineHeight: 18, marginTop: 4 },
-  primaryAction: {
-    backgroundColor: '#2563EB',
-    borderRadius: 14,
-    paddingVertical: 16,
+  heroHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
   },
-  disabledAction: { opacity: 0.5 },
+  heroTitle: {
+    color: '#BFDBFE',
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  heroBadgeText: {
+    color: '#DBEAFE',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  heroTotal: {
+    color: '#F9FAFB',
+    fontSize: 44,
+    fontWeight: '800',
+    lineHeight: 48,
+  },
+  heroUnit: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#BFDBFE',
+  },
+  heroBreakdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  heroStat: { gap: 2 },
+  heroStatLabel: {
+    color: '#93C5FD',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  heroStatValue: {
+    color: '#EFF6FF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  heroDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: 'stretch',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  heroStrava: {
+    color: '#FDBA74',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  heroEmpty: {
+    color: '#DBEAFE',
+    lineHeight: 21,
+  },
+  primaryAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#2563EB',
+    borderRadius: 16,
+    paddingVertical: 16,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  disabledAction: { opacity: 0.45, shadowOpacity: 0 },
   primaryActionText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  warningCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 14,
+    padding: 14,
+  },
+  warningText: {
+    flex: 1,
+    color: '#92400E',
+    lineHeight: 19,
+    fontSize: 13,
+  },
+  bodyStatsLine: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginTop: 4,
+  },
 });

@@ -6,6 +6,7 @@ import { Text } from '@/components/Themed';
 import { useSavedFoods } from '@/context/SavedFoodsContext';
 import type { SavedFood } from '@/types/food';
 import { formatFullNutrition } from '@/utils/nutrition';
+import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 
 function formatNutrition(food: SavedFood) {
   if (food.calories == null) return null;
@@ -110,7 +111,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     gap: 14,
-    paddingBottom: 40,
+    paddingBottom: TAB_BAR_CLEARANCE,
   },
   heading: {
     fontSize: 28,

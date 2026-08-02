@@ -15,6 +15,7 @@ import { useFood } from '@/context/FoodContext';
 import { useActivity } from '@/context/ActivityContext';
 import { useParseJobs } from '@/context/ParseJobsContext';
 import { formatCaloriesEstimate, formatMacroEstimate } from '@/utils/nutrition';
+import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 
 export default function HistoryScreen() {
   const {
@@ -135,7 +136,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     gap: 16,
-    paddingBottom: 40,
+    paddingBottom: TAB_BAR_CLEARANCE,
   },
   heading: {
     fontSize: 28,

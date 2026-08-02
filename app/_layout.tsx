@@ -59,6 +59,15 @@ function RootLayoutNav() {
                   <Stack>
                     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                     <Stack.Screen
+                      name="settings"
+                      options={{
+                        title: 'Settings',
+                        headerShown: true,
+                        headerTintColor: '#059669',
+                        headerBackTitle: 'Back',
+                      }}
+                    />
+                    <Stack.Screen
                       name="barcode"
                       options={{
                         title: 'Scan barcode',

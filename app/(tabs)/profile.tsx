@@ -13,6 +13,7 @@ import {
 
 import { Text } from '@/components/Themed';
 import { SettingsLinkCard } from '@/components/SettingsLinkCard';
+import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 import { WeightTrendChart } from '@/components/WeightTrendChart';
 import { useProfile } from '@/context/ProfileContext';
 import type { WeightEntry } from '@/types/profile';
@@ -94,7 +95,7 @@ export default function ProfileScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
         <Text style={styles.heading}>Profile</Text>
-        <Link href="/(tabs)/settings" asChild>
+        <Link href="/settings" asChild>
           <Pressable hitSlop={12} style={styles.settingsButton}>
             <Ionicons name="settings-outline" size={24} color="#374151" />
           </Pressable>
@@ -222,7 +223,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  content: { padding: 20, gap: 16, paddingBottom: 40 },
+  content: { padding: 20, gap: 16, paddingBottom: TAB_BAR_CLEARANCE },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',

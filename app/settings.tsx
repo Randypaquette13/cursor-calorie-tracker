@@ -97,8 +97,6 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.heading}>Settings</Text>
-
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Cursor API key</Text>
         <Text style={styles.cardBody}>
