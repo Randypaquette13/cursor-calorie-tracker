@@ -28,7 +28,6 @@ export default function HistoryScreen() {
     setLogDate,
     removeEntry,
     editEntry,
-    refresh,
   } = useFood();
   const { burnSummary: historyActivityBurn, entries: historyActivityEntries, removeActivityEntry } =
     useActivity();
@@ -50,11 +49,6 @@ export default function HistoryScreen() {
 
   const handleParse = async (text: string) => {
     await submitParse(text);
-  };
-
-  const handleDeleteActivity = async (id: number) => {
-    await removeActivityEntry(id);
-    await refresh();
   };
 
   return (
@@ -122,10 +116,7 @@ export default function HistoryScreen() {
         <Text style={styles.sectionTitle}>Food</Text>
         <FoodEntryList entries={historyEntries} onDelete={removeEntry} onEdit={editEntry} />
         <Text style={styles.sectionTitle}>Activity</Text>
-        <ActivityEntryList
-          entries={historyActivityEntries}
-          onDelete={handleDeleteActivity}
-        />
+        <ActivityEntryList entries={historyActivityEntries} onDelete={removeActivityEntry} />
       </ScrollView>
       <AddFoodModal
         visible={modalVisible}

@@ -30,9 +30,11 @@ const emptyBurnSummary: ActivityBurnSummary = {
 export function ActivityProvider({
   children,
   date,
+  onChanged,
 }: {
   children: React.ReactNode;
   date: string;
+  onChanged?: () => Promise<void>;
 }) {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [burnSummary, setBurnSummary] = useState<ActivityBurnSummary>(emptyBurnSummary);
@@ -54,16 +56,18 @@ export function ActivityProvider({
     async (entry: ActivityEntryInput) => {
       await insertActivityEntry(entry);
       await refreshForDate(entry.date);
+      await onChanged?.();
     },
-    [refreshForDate],
+    [onChanged, refreshForDate],
   );
 
   const removeActivityEntry = useCallback(
     async (id: number) => {
       await deleteActivityEntry(id);
       await refreshForDate(date);
+      await onChanged?.();
     },
-    [date, refreshForDate],
+    [date, onChanged, refreshForDate],
   );
 
   const value = useMemo(
