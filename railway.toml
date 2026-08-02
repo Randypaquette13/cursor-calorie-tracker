@@ -2,7 +2,8 @@
 builder = "NIXPACKS"
 
 [deploy]
-startCommand = "sh scripts/railway-entrypoint.sh"
+preDeployCommand = "node scripts/ping-brrr.mjs"
+startCommand = "npm start"
 healthcheckPath = "/status"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
