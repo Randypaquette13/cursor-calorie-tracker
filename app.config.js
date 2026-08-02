@@ -24,7 +24,7 @@ module.exports = {
     plugins: isEasBuild ? [...base.expo.plugins, ...easOnlyPlugins] : base.expo.plugins,
     extra: {
       ...base.expo.extra,
-      buildVersion: '2026-08-02-activity-score-copy',
+      buildVersion: '2026-08-02-activity-score-copy-r2',
     },
   },
 };
