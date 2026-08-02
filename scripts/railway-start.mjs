@@ -86,15 +86,13 @@ async function main() {
   log(`Metro proxy URL: ${process.env.EXPO_PACKAGER_PROXY_URL}`);
   log(`Expo Go URL: exp://${publicDomain}`);
 
-  const expo = spawn(
-    process.platform === 'win32' ? 'npx.cmd' : 'npx',
-    ['expo', 'start', '--port', port, '--host', 'lan'],
-    {
-      cwd: ROOT,
-      stdio: 'inherit',
-      env: process.env,
-    },
-  );
+  const expoBin = path.join(ROOT, 'node_modules', '.bin', 'expo');
+
+  const expo = spawn(expoBin, ['start', '--port', port, '--host', 'lan'], {
+    cwd: ROOT,
+    stdio: 'inherit',
+    env: process.env,
+  });
 
   expo.on('error', (error) => {
     log(`expo failed to start: ${error.message}`);
