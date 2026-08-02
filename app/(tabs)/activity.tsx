@@ -16,6 +16,7 @@ import { useProfile } from '@/context/ProfileContext';
 import { useStrava } from '@/context/StravaContext';
 import type { StravaActivitySummary } from '@/types/strava';
 import { formatHeightCm, formatWeightKg } from '@/utils/bodyMetrics';
+import { ACTIVITY_SCORE_EXPLANATION } from '@/utils/activityScore';
 import { collectUniqueStravaActivities, summarizeStravaActivities } from '@/utils/strava';
 
 export default function ActivityScreen() {
@@ -84,9 +85,9 @@ export default function ActivityScreen() {
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <Text style={styles.heading}>Activity</Text>
         <Text style={styles.subheading}>
-          Describe your day and how active you were (0–100). Cursor estimates total calories burned
-          including BMR. When Strava is connected, workouts for the selected day are included
-          automatically.
+          Describe your day and rate how it felt: {ACTIVITY_SCORE_EXPLANATION} Cursor estimates total
+          calories burned including BMR. When Strava is connected, workouts for the selected day are
+          included automatically.
         </Text>
 
         <View style={styles.statsCard}>
