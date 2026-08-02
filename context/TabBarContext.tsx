@@ -22,18 +22,9 @@ export function TabBarProvider({ children }: { children: React.ReactNode }) {
   const accumulatedRef = useRef(0);
 
   const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const y = contentOffset.y;
+    const y = event.nativeEvent.contentOffset.y;
     const delta = y - lastYRef.current;
     lastYRef.current = y;
-
-    // Ignore the bottom overscroll bounce: past the end of the content the
-    // rubber-band snap-back produces upward deltas that would wrongly expand.
-    const maxY = Math.max(0, contentSize.height - layoutMeasurement.height);
-    if (y > maxY - 8) {
-      accumulatedRef.current = 0;
-      return;
-    }
 
     if (Math.abs(delta) > MAX_TRACKED_DELTA) {
       accumulatedRef.current = 0;
