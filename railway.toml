@@ -2,7 +2,7 @@
 builder = "NIXPACKS"
 
 [deploy]
-startCommand = "npm run start:railway"
+startCommand = "sh scripts/railway-entrypoint.sh"
 healthcheckPath = "/status"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
