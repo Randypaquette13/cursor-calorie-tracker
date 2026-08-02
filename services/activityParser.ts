@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { getStoredApiKey, fetchRunSnapshot, runStatusError } from '@/services/cursorParser';
 import type { ParsedActivityResponse } from '@/types/profile';
 import type { StravaActivitySummary } from '@/types/strava';
+import { ACTIVITY_SCORE_EXPLANATION } from '@/utils/activityScore';
 import { formatHeightCm, formatWeightKg } from '@/utils/bodyMetrics';
 import { formatStravaActivitiesForPrompt, parseStravaActivitiesJson } from '@/utils/strava';
 
@@ -13,7 +14,7 @@ const ACTIVITY_PARSER_VERSION = '2';
 
 const SYSTEM_PROMPT = `You are a daily calorie expenditure estimation assistant.
 
-Given the user's height, weight, a free-text description of what they did today (including an activity level score from 0 to 100), and any Strava activities recorded that day, estimate their whole-day calorie burn.
+Given the user's height, weight, a free-text description of what they did today (including an activity score ${ACTIVITY_SCORE_EXPLANATION}), and any Strava activities recorded that day, estimate their whole-day calorie burn.
 
 Respond with ONLY valid JSON (no markdown, no commentary) in this exact shape:
 {
@@ -27,9 +28,9 @@ Respond with ONLY valid JSON (no markdown, no commentary) in this exact shape:
 Rules:
 - Compute BMR using Mifflin-St Jeor with the provided height and weight. Assume age 30 and sex male unless the user states otherwise.
 - bmrCalories is the estimated basal metabolic rate for the full day.
-- activityCalories is additional calories burned from movement/exercise beyond a sedentary day, informed by the activity description, Strava workout data when provided, and the 0-100 score.
+- activityCalories is additional calories burned from movement/exercise beyond a sedentary day, informed by the activity description, Strava workout data when provided, and the activity score (${ACTIVITY_SCORE_EXPLANATION}).
 - totalBurnedCalories must equal bmrCalories + activityCalories (round to whole numbers).
-- Extract activityScore from the user's text when they provide a 0-100 value; otherwise infer a reasonable score from their description.
+- Extract activityScore from the user's text when they provide a 0-100 value; otherwise infer a reasonable score from their description using this scale: ${ACTIVITY_SCORE_EXPLANATION}
 - activityScore must be between 0 and 100.
 - summary is one or two sentences explaining the estimate.
 - All calorie values must be positive whole numbers.`;

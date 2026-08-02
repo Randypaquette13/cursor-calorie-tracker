@@ -14,6 +14,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/Themed';
+import {
+  ACTIVITY_SCORE_EXPLANATION,
+  ACTIVITY_SCORE_SHORT,
+} from '@/utils/activityScore';
 
 interface AddActivityModalProps {
   visible: boolean;
@@ -60,12 +64,13 @@ export function AddActivityModal({ visible, onClose, onSubmit }: AddActivityModa
             contentContainerStyle={styles.sheetContent}>
             <Text style={styles.title}>Log activity</Text>
             <Text style={styles.subtitle}>
-              What did you do today? Include how active you were on a scale of 0–100. Cursor will
-              estimate your daily BMR and activity burn using your height and weight.
+              What did you do today? Rate how the day felt overall on a {ACTIVITY_SCORE_EXPLANATION}{' '}
+              Cursor estimates your daily BMR and activity burn using your height and weight.
             </Text>
+            <Text style={styles.scaleHint}>{ACTIVITY_SCORE_SHORT}</Text>
             <TextInput
               style={styles.input}
-              placeholder={'e.g. "Morning run 3 miles, desk job all afternoon, evening walk. Activity: 55/100"'}
+              placeholder={'e.g. "Morning run 3 miles, desk job all afternoon, evening walk. Score: 55/100"'}
               placeholderTextColor="#9CA3AF"
               value={text}
               onChangeText={setText}
@@ -106,6 +111,15 @@ const styles = StyleSheet.create({
   sheetContent: { padding: 20, gap: 12 },
   title: { fontSize: 20, fontWeight: '700', color: '#111827' },
   subtitle: { color: '#6B7280', lineHeight: 20 },
+  scaleHint: {
+    color: '#374151',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    padding: 10,
+  },
   input: {
     minHeight: 120,
     maxHeight: 180,

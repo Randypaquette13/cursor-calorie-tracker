@@ -3,6 +3,7 @@ import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/Themed';
 import type { ActivityEntry } from '@/types/profile';
+import { ACTIVITY_SCORE_EXPLANATION } from '@/utils/activityScore';
 import {
   formatStravaActivityTime,
   formatStravaDistance,
@@ -21,7 +22,7 @@ export function ActivityEntryList({ entries, onDelete }: ActivityEntryListProps)
       <View style={styles.empty}>
         <Text style={styles.emptyTitle}>No activity logged yet</Text>
         <Text style={styles.emptyBody}>
-          Describe what you did today and how active you were (0–100) to get a calorie burn estimate.
+          Describe what you did and rate the day: {ACTIVITY_SCORE_EXPLANATION}
         </Text>
       </View>
     );
