@@ -1,4 +1,3 @@
-import * as AuthSession from 'expo-auth-session';
 import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -7,9 +6,10 @@ import { getDayUnixRange } from '@/utils/strava';
 
 WebBrowser.maybeCompleteAuthSession();
 
-const STRAVA_AUTH_URL = 'https://www.strava.com/oauth/authorize';
+const STRAVA_AUTH_URL = 'https://www.strava.com/oauth/mobile/authorize';
 const STRAVA_TOKEN_URL = 'https://www.strava.com/oauth/token';
 const STRAVA_API = 'https://www.strava.com/api/v3';
+const STRAVA_REDIRECT_URI = 'http://localhost';
 
 const CLIENT_ID_KEY = 'strava_client_id';
 const CLIENT_SECRET_KEY = 'strava_client_secret';
@@ -45,10 +45,9 @@ interface StravaActivityResponse {
 }
 
 export function getStravaRedirectUri() {
-  return AuthSession.makeRedirectUri({
-    scheme: 'cursorcalorietracker',
-    path: 'strava',
-  });
+  // Strava only accepts http/https URLs within the app's Authorization Callback Domain.
+  // Set callback domain to "localhost" at strava.com/settings/api.
+  return STRAVA_REDIRECT_URI;
 }
 
 export async function getStravaCredentials() {
@@ -160,6 +159,7 @@ export async function connectStrava() {
     client_secret: clientSecret,
     code,
     grant_type: 'authorization_code',
+    redirect_uri: redirectUri,
   });
 }
 
