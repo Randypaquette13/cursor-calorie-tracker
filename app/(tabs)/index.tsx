@@ -11,6 +11,7 @@ import { LogDateSelector } from '@/components/LogDateSelector';
 import { Text } from '@/components/Themed';
 import { useParseJobs } from '@/context/ParseJobsContext';
 import { useFood } from '@/context/FoodContext';
+import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 
 export default function TodayScreen() {
   const { today, logDate, setLogDate, todaySummary, todayActivityBurn, todayEntries, editEntry, removeEntry } =
@@ -60,7 +61,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     gap: 16,
-    paddingBottom: 40,
+    paddingBottom: TAB_BAR_CLEARANCE,
   },
   heading: {
     fontSize: 28,
