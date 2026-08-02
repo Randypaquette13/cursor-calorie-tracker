@@ -8,6 +8,8 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { FoodProvider } from '@/context/FoodContext';
 import { ParseJobsBridge } from '@/context/ParseJobsBridge';
+import { ProfileProvider } from '@/context/ProfileContext';
+import { ActivityJobsBridge } from '@/context/ActivityJobsBridge';
 import { SavedFoodsProvider } from '@/context/SavedFoodsContext';
 
 export {
@@ -47,22 +49,26 @@ function RootLayoutNav() {
 
   return (
     <FoodProvider>
-      <ParseJobsBridge>
-        <SavedFoodsProvider>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="barcode"
-                options={{
-                  title: 'Scan barcode',
-                  presentation: 'modal',
-                }}
-              />
-            </Stack>
-          </ThemeProvider>
-        </SavedFoodsProvider>
-      </ParseJobsBridge>
+      <ProfileProvider>
+        <ParseJobsBridge>
+          <ActivityJobsBridge>
+            <SavedFoodsProvider>
+              <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                <Stack>
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="barcode"
+                    options={{
+                      title: 'Scan barcode',
+                      presentation: 'modal',
+                    }}
+                  />
+                </Stack>
+              </ThemeProvider>
+            </SavedFoodsProvider>
+          </ActivityJobsBridge>
+        </ParseJobsBridge>
+      </ProfileProvider>
     </FoodProvider>
   );
 }

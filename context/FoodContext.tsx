@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 import {
   deleteFoodEntry,
+  getActivityBurnSummaryForDate,
   getDailySummary,
   getEntriesForDate,
   getHistorySummaries,
@@ -12,6 +13,7 @@ import {
   updateFoodEntry,
 } from '@/services/database';
 import type { DailySummary, FoodEntry, FoodEntryInput, MealType } from '@/types/food';
+import type { ActivityBurnSummary } from '@/types/profile';
 
 interface FoodContextValue {
   ready: boolean;
@@ -20,6 +22,7 @@ interface FoodContextValue {
   setLogDate: (date: string) => void;
   todayEntries: FoodEntry[];
   todaySummary: DailySummary;
+  todayActivityBurn: ActivityBurnSummary;
   historySelectedDate: string;
   setHistorySelectedDate: (date: string) => void;
   historyEntries: FoodEntry[];
@@ -92,6 +95,12 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
     entryCount: 0,
   });
   const [history, setHistory] = useState<DailySummary[]>([]);
+  const [todayActivityBurn, setTodayActivityBurn] = useState<ActivityBurnSummary>({
+    totalBurned: 0,
+    bmrTotal: 0,
+    activityTotal: 0,
+    entryCount: 0,
+  });
 
   const refresh = useCallback(async () => {
     const [
@@ -100,12 +109,14 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
       selectedDayEntries,
       selectedDaySummary,
       historySummaries,
+      activityBurn,
     ] = await Promise.all([
       getEntriesForDate(today),
       getDailySummary(today),
       getEntriesForDate(historySelectedDate),
       getDailySummary(historySelectedDate),
       getHistorySummaries(),
+      getActivityBurnSummaryForDate(today),
     ]);
 
     setTodayEntries(currentDayEntries);
@@ -113,6 +124,7 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
     setHistoryEntries(selectedDayEntries);
     setHistorySummary(selectedDaySummary);
     setHistory(historySummaries);
+    setTodayActivityBurn(activityBurn);
   }, [historySelectedDate, today]);
 
   useEffect(() => {
@@ -197,6 +209,7 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
       setLogDate,
       todayEntries,
       todaySummary,
+      todayActivityBurn,
       historySelectedDate,
       setHistorySelectedDate,
       historyEntries,
@@ -214,6 +227,7 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
       logDate,
       todayEntries,
       todaySummary,
+      todayActivityBurn,
       historySelectedDate,
       historyEntries,
       historySummary,

@@ -22,7 +22,7 @@ module.exports = {
     plugins: isEasBuild ? [...base.expo.plugins, ...easOnlyPlugins] : base.expo.plugins,
     extra: {
       ...base.expo.extra,
-      buildVersion: '2026-08-01-barcode-done-historical-log',
+      buildVersion: '2026-08-02-activity-burn-profile',
     },
   },
 };

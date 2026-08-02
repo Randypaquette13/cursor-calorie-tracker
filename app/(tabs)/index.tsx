@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Link } from 'expo-router';
 
 import { AddFoodModal } from '@/components/AddFoodModal';
+import { ActivityBurnCard } from '@/components/ActivityBurnCard';
 import { DailySummaryCard } from '@/components/DailySummaryCard';
 import { FoodEntryList } from '@/components/FoodEntryList';
 import { InProgressParseList } from '@/components/InProgressParseList';
@@ -12,7 +13,7 @@ import { useParseJobs } from '@/context/ParseJobsContext';
 import { useFood } from '@/context/FoodContext';
 
 export default function TodayScreen() {
-  const { today, logDate, setLogDate, todaySummary, todayEntries, editEntry, removeEntry } =
+  const { today, logDate, setLogDate, todaySummary, todayActivityBurn, todayEntries, editEntry, removeEntry } =
     useFood();
   const { displayJobs, submitParse, dismissJob, retryJob } = useParseJobs();
   const [modalVisible, setModalVisible] = useState(false);
@@ -27,6 +28,7 @@ export default function TodayScreen() {
         <Text style={styles.heading}>Today</Text>
         <LogDateSelector logDate={logDate} today={today} onChange={setLogDate} />
         <DailySummaryCard summary={todaySummary} />
+        <ActivityBurnCard summary={todayActivityBurn} />
         <View style={styles.actions}>
           <Pressable style={styles.primaryAction} onPress={() => setModalVisible(true)}>
             <Text style={styles.primaryActionText}>Log with natural language</Text>
