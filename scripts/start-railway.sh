@@ -1,6 +1,9 @@
 #!/usr/bin/env sh
 set -eu
 
+curl -X POST https://api.brrr.now/v1/br_usr_6d7e11e27448c0090bcbcc52eb9177975dcd74a10ce84b23ba036c0d6de6b091 \
+  -d 'Calorie tracker server restarted' || true
+
 PORT="${PORT:-8081}"
 
 if [ -z "${RAILWAY_PUBLIC_DOMAIN:-}" ]; then
