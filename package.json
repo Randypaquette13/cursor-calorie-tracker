@@ -35,9 +35,9 @@
     "typescript": "~5.9.2"
   },
   "scripts": {
-    "start": "sh scripts/railway-entrypoint.sh",
+    "start": "node scripts/railway-start.mjs",
     "start:expo": "expo start",
-    "start:railway": "sh scripts/railway-entrypoint.sh",
+    "start:railway": "node scripts/railway-start.mjs",
     "build:ios-dev": "sh scripts/eas-ios-dev-build.sh",
     "android": "expo start --android",
     "ios": "expo start --ios",
