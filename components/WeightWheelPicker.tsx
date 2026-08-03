@@ -1,9 +1,17 @@
-import { Picker } from '@react-native-picker/picker';
-import { useMemo } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import {
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
-import { Text } from '@/components/Themed';
-
+const ITEM_HEIGHT = 40;
+const VISIBLE_ROWS = 5;
+const WHEEL_HEIGHT = ITEM_HEIGHT * VISIBLE_ROWS;
+const PAD_ROWS = Math.floor(VISIBLE_ROWS / 2);
 const DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 
 export interface WeightWheelValue {
@@ -37,22 +45,62 @@ interface WeightWheelPickerProps {
   onChange: (value: WeightWheelValue) => void;
 }
 
-interface DigitPickerProps {
-  selectedValue: number;
-  onValueChange: (value: number) => void;
+interface WheelColumnProps {
+  value: number;
+  onChange: (value: number) => void;
 }
 
-function DigitPicker({ selectedValue, onValueChange }: DigitPickerProps) {
+function WheelColumn({ value, onChange }: WheelColumnProps) {
+  const scrollRef = useRef<ScrollView>(null);
+  const draggingRef = useRef(false);
+
+  useEffect(() => {
+    if (draggingRef.current) {
+      return;
+    }
+    scrollRef.current?.scrollTo({ y: value * ITEM_HEIGHT, animated: false });
+  }, [value]);
+
+  const snapScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const index = Math.max(0, Math.min(DIGITS.length - 1, Math.round(offsetY / ITEM_HEIGHT)));
+    scrollRef.current?.scrollTo({ y: index * ITEM_HEIGHT, animated: true });
+    if (DIGITS[index] !== value) {
+      onChange(DIGITS[index]);
+    }
+  };
+
   return (
-    <Picker
-      selectedValue={selectedValue}
-      onValueChange={onValueChange}
-      style={styles.picker}
-      itemStyle={styles.pickerItem}>
-      {DIGITS.map((digit) => (
-        <Picker.Item key={digit} label={String(digit)} value={digit} />
-      ))}
-    </Picker>
+    <View style={styles.column}>
+      <ScrollView
+        ref={scrollRef}
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM_HEIGHT}
+        decelerationRate="fast"
+        contentOffset={{ x: 0, y: value * ITEM_HEIGHT }}
+        onScrollBeginDrag={() => {
+          draggingRef.current = true;
+        }}
+        onMomentumScrollEnd={(event) => {
+          draggingRef.current = false;
+          snapScroll(event);
+        }}
+        onScrollEndDrag={(event) => {
+          const velocityY = event.nativeEvent.velocity?.y ?? 0;
+          if (Math.abs(velocityY) < 0.05) {
+            draggingRef.current = false;
+            snapScroll(event);
+          }
+        }}
+        contentContainerStyle={styles.columnContent}>
+        {DIGITS.map((digit) => (
+          <View key={digit} style={styles.item}>
+            <Text style={styles.itemText}>{digit}</Text>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -69,28 +117,27 @@ export function WeightWheelPicker({ value, onChange }: WeightWheelPickerProps) {
         {formatWeightDigits(value)} <Text style={styles.previewUnit}>lb</Text>
       </Text>
 
-      <View style={styles.wheelRow}>
-        <DigitPicker
-          selectedValue={value.hundreds}
-          onValueChange={(digit) => updateDigit('hundreds', digit)}
-        />
-        <DigitPicker
-          selectedValue={value.tens}
-          onValueChange={(digit) => updateDigit('tens', digit)}
-        />
-        <DigitPicker
-          selectedValue={value.ones}
-          onValueChange={(digit) => updateDigit('ones', digit)}
-        />
-        <Text style={styles.separator}>.</Text>
-        <DigitPicker
-          selectedValue={value.decimal}
-          onValueChange={(digit) => updateDigit('decimal', digit)}
-        />
+      <View style={styles.wheelFrame}>
+        <View pointerEvents="none" style={styles.selectionBand} />
+        <View style={styles.wheelRow}>
+          <WheelColumn
+            value={value.hundreds}
+            onChange={(digit) => updateDigit('hundreds', digit)}
+          />
+          <WheelColumn value={value.tens} onChange={(digit) => updateDigit('tens', digit)} />
+          <WheelColumn value={value.ones} onChange={(digit) => updateDigit('ones', digit)} />
+          <View style={styles.separatorWrap}>
+            <Text style={styles.separator}>.</Text>
+          </View>
+          <WheelColumn
+            value={value.decimal}
+            onChange={(digit) => updateDigit('decimal', digit)}
+          />
+        </View>
       </View>
 
       <Text style={styles.hint}>
-        {lbs > 0 ? 'Spin each wheel to set your weight' : 'Set a weight above 0 lb'}
+        {lbs > 0 ? 'Scroll each column to set your weight' : 'Set a weight above 0 lb'}
       </Text>
     </View>
   );
@@ -98,7 +145,7 @@ export function WeightWheelPicker({ value, onChange }: WeightWheelPickerProps) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 4,
+    gap: 8,
   },
   preview: {
     textAlign: 'center',
@@ -111,31 +158,65 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#6B7280',
   },
+  wheelFrame: {
+    height: WHEEL_HEIGHT,
+    justifyContent: 'center',
+  },
   wheelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    height: WHEEL_HEIGHT,
   },
-  picker: {
-    width: Platform.OS === 'ios' ? 64 : 72,
-    height: Platform.OS === 'ios' ? 180 : 48,
+  selectionBand: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    top: PAD_ROWS * ITEM_HEIGHT,
+    height: ITEM_HEIGHT,
+    borderRadius: 10,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
   },
-  pickerItem: {
+  column: {
+    width: 44,
+    height: WHEEL_HEIGHT,
+    overflow: 'hidden',
+  },
+  columnContent: {
+    paddingVertical: PAD_ROWS * ITEM_HEIGHT,
+  },
+  item: {
+    height: ITEM_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itemText: {
+    width: 44,
+    textAlign: 'center',
     fontSize: 22,
     fontWeight: '600',
     color: '#111827',
+    fontVariant: ['tabular-nums'],
+    lineHeight: ITEM_HEIGHT,
+  },
+  separatorWrap: {
+    width: 16,
+    height: WHEEL_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   separator: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: '#374151',
-    marginHorizontal: -4,
-    marginBottom: Platform.OS === 'ios' ? 0 : 0,
+    lineHeight: ITEM_HEIGHT,
+    textAlign: 'center',
   },
   hint: {
     textAlign: 'center',
     color: '#9CA3AF',
     fontSize: 13,
-    marginTop: 4,
   },
 });
