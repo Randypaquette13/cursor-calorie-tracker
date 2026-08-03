@@ -1,4 +1,5 @@
 import type { ParsedFoodItem } from '@/types/food';
+import { barcodeLookupCandidates } from '@/utils/barcode';
 import { exactNutrition } from '@/utils/nutrition';
 
 interface OpenFoodFactsProduct {
@@ -31,21 +32,7 @@ function pickNumber(...values: Array<number | undefined>) {
   return 0;
 }
 
-export async function lookupBarcode(barcode: string): Promise<ParsedFoodItem> {
-  const response = await fetch(
-    `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`,
-  );
-
-  if (!response.ok) {
-    throw new Error('Could not reach Open Food Facts.');
-  }
-
-  const data = (await response.json()) as OpenFoodFactsResponse;
-  if (data.status !== 1 || !data.product) {
-    throw new Error('Product not found in Open Food Facts.');
-  }
-
-  const product = data.product;
+function parseProduct(barcode: string, product: OpenFoodFactsProduct): ParsedFoodItem {
   const nameParts = [product.product_name, product.brands].filter(Boolean);
   const name = nameParts.join(' — ') || `Barcode ${barcode}`;
 
@@ -67,4 +54,55 @@ export async function lookupBarcode(barcode: string): Promise<ParsedFoodItem> {
       fat: pickNumber(product.nutriments?.fat_serving, product.nutriments?.fat_100g),
     }),
   };
+}
+
+async function lookupBarcodeOnce(
+  barcode: string,
+  signal?: AbortSignal,
+): Promise<ParsedFoodItem> {
+  const response = await fetch(
+    `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`,
+    { signal },
+  );
+
+  if (!response.ok) {
+    throw new Error('Could not reach Open Food Facts.');
+  }
+
+  const data = (await response.json()) as OpenFoodFactsResponse;
+  if (data.status !== 1 || !data.product) {
+    throw new Error('Product not found in Open Food Facts.');
+  }
+
+  return parseProduct(barcode, data.product);
+}
+
+export async function lookupBarcode(
+  barcode: string,
+  signal?: AbortSignal,
+): Promise<ParsedFoodItem> {
+  const candidates = barcodeLookupCandidates(barcode);
+  if (candidates.length === 0) {
+    throw new Error('Invalid barcode scanned.');
+  }
+
+  let lastError: Error | null = null;
+
+  for (const candidate of candidates) {
+    if (signal?.aborted) {
+      throw new Error('Scan cancelled.');
+    }
+
+    try {
+      return await lookupBarcodeOnce(candidate, signal);
+    } catch (error) {
+      if (signal?.aborted) {
+        throw new Error('Scan cancelled.');
+      }
+
+      lastError = error instanceof Error ? error : new Error('Unknown error');
+    }
+  }
+
+  throw lastError ?? new Error('Product not found in Open Food Facts.');
 }
