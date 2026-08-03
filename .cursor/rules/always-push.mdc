@@ -1,19 +1,25 @@
 ---
-description: Mandatory git workflow — always commit and push after every code change
+description: Mandatory git workflow — commit, push, open PR, and merge to main
 alwaysApply: true
 ---
 
-# Always push after every change
+# Ship workflow — push and merge before done
 
 When the user asks you to make a change (fix, feature, config, assets, etc.):
 
 1. **Implement** the change
 2. **Commit** with a clear message on a `cursor/<descriptive-name>-8262` branch
-3. **Push** to origin immediately: `git push -u origin <branch-name>`
-4. Only then tell the user the work is done
+3. **Push** to origin: `git push -u origin <branch-name>`
+4. **Open a PR** to `main` (or register it via the PR tool)
+5. **Merge the PR to `main`** before telling the user the work is done
+6. Confirm on GitHub that the PR state is `MERGED` and `main` contains the change
 
-Never leave changes only local or uncommitted. Never say "done" without a successful push.
+Creating a PR is **not** done. **Merged to `main` is done.**
+
+Never leave changes only local or uncommitted. Never say "done" after only pushing a branch or opening a PR.
+
+If merge fails due to conflicts, rebase onto `main`, resolve conflicts, push, and merge before responding.
 
 If push fails, retry with exponential backoff (4s, 8s, 16s, 32s) up to 4 times, then report the failure.
 
-When multiple changes stack, merge PRs to `main` when the user asks to ship or merge.
+When multiple PRs are open for this project, merge all of them to `main` before finishing unless the user explicitly asked to leave one open.
