@@ -13,6 +13,11 @@ import {
 
 import { Text } from '@/components/Themed';
 import { SettingsLinkCard } from '@/components/SettingsLinkCard';
+import {
+  lbsToWeightDigits,
+  WeightWheelPicker,
+  weightDigitsToLbs,
+} from '@/components/WeightWheelPicker';
 import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 import { WeightTrendChart } from '@/components/WeightTrendChart';
 import { useProfile } from '@/context/ProfileContext';
@@ -57,7 +62,9 @@ export default function ProfileScreen() {
 
   const [feet, setFeet] = useState(initialHeight.feet);
   const [inches, setInches] = useState(initialHeight.inches);
-  const [weightLbs, setWeightLbs] = useState('');
+  const [weightDigits, setWeightDigits] = useState(() =>
+    lbsToWeightDigits(latestWeight ? kgToLbs(latestWeight.weightKg) : 180),
+  );
 
   const historyWithDeltas = useMemo(() => buildHistoryWithDeltas(weightHistory), [weightHistory]);
 
@@ -68,6 +75,12 @@ export default function ProfileScreen() {
       setInches(String(inchValue));
     }
   }, [profile.heightCm]);
+
+  useEffect(() => {
+    if (latestWeight) {
+      setWeightDigits(lbsToWeightDigits(kgToLbs(latestWeight.weightKg)));
+    }
+  }, [latestWeight?.id]);
 
   const handleSaveHeight = async () => {
     const feetNum = Number(feet);
@@ -82,14 +95,13 @@ export default function ProfileScreen() {
   };
 
   const handleLogWeight = async () => {
-    const lbs = Number(weightLbs);
+    const lbs = weightDigitsToLbs(weightDigits);
     if (!Number.isFinite(lbs) || lbs <= 0) {
-      Alert.alert('Invalid weight', 'Enter your weight in pounds.');
+      Alert.alert('Invalid weight', 'Set a weight above 0 lb.');
       return;
     }
 
     await logWeightKg(lbsToKg(lbs));
-    setWeightLbs('');
     Alert.alert('Logged', 'Weight saved.');
   };
 
@@ -159,14 +171,7 @@ export default function ProfileScreen() {
         ) : (
           <Text style={styles.missingValue}>No weight logged yet</Text>
         )}
-        <TextInput
-          style={styles.input}
-          value={weightLbs}
-          onChangeText={setWeightLbs}
-          keyboardType="decimal-pad"
-          placeholder="Weight in lb"
-          placeholderTextColor="#9CA3AF"
-        />
+        <WeightWheelPicker value={weightDigits} onChange={setWeightDigits} />
         <Pressable style={styles.primaryButton} onPress={handleLogWeight}>
           <Text style={styles.primaryText}>Log weight</Text>
         </Pressable>
