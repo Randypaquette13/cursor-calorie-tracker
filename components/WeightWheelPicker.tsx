@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useRef } from 'react';
 import {
   NativeScrollEvent,
@@ -8,7 +10,7 @@ import {
   View,
 } from 'react-native';
 
-const ITEM_HEIGHT = 40;
+const ITEM_HEIGHT = 44;
 const VISIBLE_ROWS = 5;
 const WHEEL_HEIGHT = ITEM_HEIGHT * VISIBLE_ROWS;
 const PAD_ROWS = Math.floor(VISIBLE_ROWS / 2);
@@ -96,7 +98,7 @@ function WheelColumn({ value, onChange }: WheelColumnProps) {
         contentContainerStyle={styles.columnContent}>
         {DIGITS.map((digit) => (
           <View key={digit} style={styles.item}>
-            <Text style={styles.itemText}>{digit}</Text>
+            <Text style={[styles.itemText, digit === value && styles.itemTextSelected]}>{digit}</Text>
           </View>
         ))}
       </ScrollView>
@@ -104,8 +106,27 @@ function WheelColumn({ value, onChange }: WheelColumnProps) {
   );
 }
 
+function WheelFadeMasks() {
+  return (
+    <>
+      <LinearGradient
+        pointerEvents="none"
+        colors={['#FFFFFF', 'rgba(255, 255, 255, 0.88)', 'rgba(255, 255, 255, 0)']}
+        style={styles.fadeTop}
+      />
+      <LinearGradient
+        pointerEvents="none"
+        colors={['rgba(255, 255, 255, 0)', 'rgba(255, 255, 255, 0.88)', '#FFFFFF']}
+        style={styles.fadeBottom}
+      />
+    </>
+  );
+}
+
 export function WeightWheelPicker({ value, onChange }: WeightWheelPickerProps) {
   const lbs = useMemo(() => weightDigitsToLbs(value), [value]);
+  const formatted = formatWeightDigits(value);
+  const [whole, fraction = '0'] = formatted.split('.');
 
   const updateDigit = (key: keyof WeightWheelValue, digit: number) => {
     onChange({ ...value, [key]: digit });
@@ -113,11 +134,22 @@ export function WeightWheelPicker({ value, onChange }: WeightWheelPickerProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.preview}>
-        {formatWeightDigits(value)} <Text style={styles.previewUnit}>lb</Text>
-      </Text>
+      <View style={styles.displayRow}>
+        <View style={styles.displayIcon}>
+          <Ionicons name="scale-outline" size={18} color="#059669" />
+        </View>
+        <View style={styles.displayCopy}>
+          <Text style={styles.displayLabel}>Selected weight</Text>
+          <View style={styles.displayValueRow}>
+            <Text style={styles.displayWhole}>{whole}</Text>
+            <Text style={styles.displayFraction}>.{fraction}</Text>
+            <Text style={styles.displayUnit}>lb</Text>
+          </View>
+        </View>
+      </View>
 
-      <View style={styles.wheelFrame}>
+      <View style={styles.wheelPanel}>
+        <WheelFadeMasks />
         <View pointerEvents="none" style={styles.selectionBand} />
         <View style={styles.wheelRow}>
           <WheelColumn
@@ -137,7 +169,7 @@ export function WeightWheelPicker({ value, onChange }: WeightWheelPickerProps) {
       </View>
 
       <Text style={styles.hint}>
-        {lbs > 0 ? 'Scroll each column to set your weight' : 'Set a weight above 0 lb'}
+        {lbs > 0 ? 'Spin each column to adjust' : 'Set a weight above 0 lb to log'}
       </Text>
     </View>
   );
@@ -145,44 +177,113 @@ export function WeightWheelPicker({ value, onChange }: WeightWheelPickerProps) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 8,
+    gap: 14,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 16,
   },
-  preview: {
-    textAlign: 'center',
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
+  displayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  previewUnit: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  wheelFrame: {
-    height: WHEEL_HEIGHT,
+  displayIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    alignItems: 'center',
     justifyContent: 'center',
+  },
+  displayCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  displayLabel: {
+    color: '#6B7280',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  displayValueRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  displayWhole: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#111827',
+    fontVariant: ['tabular-nums'],
+    lineHeight: 38,
+  },
+  displayFraction: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#374151',
+    fontVariant: ['tabular-nums'],
+    lineHeight: 32,
+    marginBottom: 2,
+  },
+  displayUnit: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    marginLeft: 6,
+    marginBottom: 4,
+  },
+  wheelPanel: {
+    height: WHEEL_HEIGHT,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    overflow: 'hidden',
+    position: 'relative',
   },
   wheelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     height: WHEEL_HEIGHT,
+    paddingHorizontal: 8,
   },
   selectionBand: {
     position: 'absolute',
-    left: 16,
-    right: 16,
+    left: 12,
+    right: 12,
     top: PAD_ROWS * ITEM_HEIGHT,
     height: ITEM_HEIGHT,
-    borderRadius: 10,
-    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
+    backgroundColor: 'rgba(5, 150, 105, 0.08)',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: 'rgba(5, 150, 105, 0.22)',
+  },
+  fadeTop: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: PAD_ROWS * ITEM_HEIGHT + 8,
+    zIndex: 2,
+  },
+  fadeBottom: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: PAD_ROWS * ITEM_HEIGHT + 8,
+    zIndex: 2,
   },
   column: {
-    width: 44,
+    width: 46,
     height: WHEEL_HEIGHT,
     overflow: 'hidden',
+    zIndex: 1,
   },
   columnContent: {
     paddingVertical: PAD_ROWS * ITEM_HEIGHT,
@@ -193,30 +294,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   itemText: {
-    width: 44,
+    width: 46,
     textAlign: 'center',
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 20,
+    fontWeight: '500',
+    color: '#CBD5E1',
     fontVariant: ['tabular-nums'],
     lineHeight: ITEM_HEIGHT,
   },
+  itemTextSelected: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#047857',
+  },
   separatorWrap: {
-    width: 16,
+    width: 14,
     height: WHEEL_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
   separator: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#374151',
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#059669',
     lineHeight: ITEM_HEIGHT,
     textAlign: 'center',
   },
   hint: {
     textAlign: 'center',
     color: '#9CA3AF',
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

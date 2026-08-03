@@ -157,22 +157,33 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Weight</Text>
-        <Text style={styles.cardBody}>
-          Log whenever you weigh yourself. Every entry is saved to your history and used for
-          activity estimates.
-        </Text>
-        {latestWeight ? (
-          <Text style={styles.currentValue}>
-            Latest: {formatWeightKg(latestWeight.weightKg)} ·{' '}
-            {format(parseISO(latestWeight.recordedAt), 'MMM d, h:mm a')}
-          </Text>
-        ) : (
-          <Text style={styles.missingValue}>No weight logged yet</Text>
-        )}
+      <View style={styles.weightSection}>
+        <View style={styles.weightSectionHeader}>
+          <View style={styles.weightSectionTitleWrap}>
+            <Text style={styles.cardTitle}>Weight</Text>
+            <Text style={styles.weightSectionSubtitle}>
+              Saved to history and used for activity estimates
+            </Text>
+          </View>
+          {latestWeight ? (
+            <View style={styles.latestBadge}>
+              <Text style={styles.latestBadgeLabel}>Latest</Text>
+              <Text style={styles.latestBadgeValue}>{formatWeightKg(latestWeight.weightKg)}</Text>
+              <Text style={styles.latestBadgeDate}>
+                {format(parseISO(latestWeight.recordedAt), 'MMM d')}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.latestBadgeEmpty}>
+              <Text style={styles.latestBadgeEmptyText}>Not logged</Text>
+            </View>
+          )}
+        </View>
+
         <WeightWheelPicker value={weightDigits} onChange={setWeightDigits} />
-        <Pressable style={styles.primaryButton} onPress={handleLogWeight}>
+
+        <Pressable style={styles.logWeightButton} onPress={handleLogWeight}>
+          <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
           <Text style={styles.primaryText}>Log weight</Text>
         </Pressable>
       </View>
@@ -280,6 +291,79 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
+  },
+  weightSection: {
+    gap: 14,
+  },
+  weightSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  weightSectionTitleWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  weightSectionSubtitle: {
+    color: '#6B7280',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  latestBadge: {
+    alignItems: 'flex-end',
+    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 1,
+    minWidth: 88,
+  },
+  latestBadgeLabel: {
+    color: '#6B7280',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  latestBadgeValue: {
+    color: '#047857',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  latestBadgeDate: {
+    color: '#6B7280',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  latestBadgeEmpty: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  latestBadgeEmptyText: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  logWeightButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#059669',
+    borderRadius: 14,
+    paddingVertical: 15,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 3,
   },
   primaryText: { color: '#FFFFFF', fontWeight: '700' },
   historyHeader: {
