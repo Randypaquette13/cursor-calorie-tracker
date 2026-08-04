@@ -45,6 +45,7 @@ export function DailySummaryCard({
           min={summary.proteinMin}
           max={summary.proteinMax}
           ideal={targets?.protein}
+          idealComparison="min"
         />
         <Macro
           label="Carbs"
@@ -59,6 +60,7 @@ export function DailySummaryCard({
           min={summary.fatMin}
           max={summary.fatMax}
           ideal={targets?.fat}
+          idealComparison="max"
         />
       </View>
       <Text style={styles.meta}>{summary.entryCount} entries logged</Text>
@@ -67,18 +69,27 @@ export function DailySummaryCard({
   );
 }
 
+function formatIdealMacro(ideal: number, comparison?: 'min' | 'max') {
+  const amount = formatMacroEstimate(ideal);
+  if (comparison === 'min') return `ideal > ${amount}`;
+  if (comparison === 'max') return `ideal < ${amount}`;
+  return `ideal ${amount}`;
+}
+
 function Macro({
   label,
   value,
   min,
   max,
   ideal,
+  idealComparison,
 }: {
   label: string;
   value: number;
   min: number;
   max: number;
   ideal?: number;
+  idealComparison?: 'min' | 'max';
 }) {
   return (
     <View style={styles.macroItem}>
@@ -92,7 +103,7 @@ function Macro({
         rangeStyle={styles.macroRange}
       />
       {ideal != null ? (
-        <Text style={styles.macroIdeal}>ideal {formatMacroEstimate(ideal)}</Text>
+        <Text style={styles.macroIdeal}>{formatIdealMacro(ideal, idealComparison)}</Text>
       ) : null}
     </View>
   );
