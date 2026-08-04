@@ -27,7 +27,7 @@ module.exports = {
     plugins: isEasBuild ? [...base.expo.plugins, ...easOnlyPlugins] : base.expo.plugins,
     extra: {
       ...base.expo.extra,
-      buildVersion: '2026-08-04-macro-target-note',
+      buildVersion: '2026-08-04-macro-comparators',
       stravaOAuthRedirectUri,
       stravaCallbackDomain,
     },
