@@ -14,8 +14,10 @@ import { Text } from '@/components/Themed';
 import { useFood } from '@/context/FoodContext';
 import { useActivity } from '@/context/ActivityContext';
 import { useParseJobs } from '@/context/ParseJobsContext';
+import { useProfile } from '@/context/ProfileContext';
 import { useTabBar } from '@/context/TabBarContext';
 import { formatCaloriesEstimate, formatMacroEstimate } from '@/utils/nutrition';
+import { computeMacroTargets } from '@/utils/macroTargets';
 import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 
 export default function HistoryScreen() {
@@ -33,9 +35,20 @@ export default function HistoryScreen() {
   } = useFood();
   const { burnSummary: historyActivityBurn, entries: historyActivityEntries, removeActivityEntry } =
     useActivity();
+  const { profile, latestWeight } = useProfile();
   const { displayJobs, submitParse, dismissJob, retryJob } = useParseJobs();
   const { onScroll } = useTabBar();
   const [modalVisible, setModalVisible] = useState(false);
+
+  const macroTargets = useMemo(
+    () =>
+      computeMacroTargets({
+        heightCm: profile.heightCm,
+        weightKg: latestWeight?.weightKg ?? null,
+        activityBurn: historyActivityBurn,
+      }),
+    [profile.heightCm, latestWeight?.weightKg, historyActivityBurn],
+  );
 
   const selectDate = (date: string) => {
     setHistorySelectedDate(date);
@@ -118,7 +131,7 @@ export default function HistoryScreen() {
           </Link>
         </View>
         <InProgressParseList jobs={displayJobs} onDismiss={dismissJob} onRetry={retryJob} />
-        <DailySummaryCard summary={historySummary} title="Day summary" />
+        <DailySummaryCard summary={historySummary} title="Day summary" targets={macroTargets} />
         <ActivityBurnCard summary={historyActivityBurn} title="Activity burn" />
         <Text style={styles.sectionTitle}>Food</Text>
         <FoodEntryList entries={historyEntries} onDelete={removeEntry} onEdit={editEntry} />
