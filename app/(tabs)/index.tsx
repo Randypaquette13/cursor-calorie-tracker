@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Link } from 'expo-router';
 
@@ -11,15 +11,28 @@ import { LogDateSelector } from '@/components/LogDateSelector';
 import { Text } from '@/components/Themed';
 import { useParseJobs } from '@/context/ParseJobsContext';
 import { useFood } from '@/context/FoodContext';
+import { useProfile } from '@/context/ProfileContext';
 import { useTabBar } from '@/context/TabBarContext';
 import { TAB_BAR_CLEARANCE } from '@/constants/layout';
+import { computeMacroTargets } from '@/utils/macroTargets';
 
 export default function TodayScreen() {
   const { today, logDate, setLogDate, todaySummary, todayActivityBurn, todayEntries, editEntry, removeEntry } =
     useFood();
+  const { profile, latestWeight } = useProfile();
   const { displayJobs, submitParse, dismissJob, retryJob } = useParseJobs();
   const { onScroll } = useTabBar();
   const [modalVisible, setModalVisible] = useState(false);
+
+  const macroTargets = useMemo(
+    () =>
+      computeMacroTargets({
+        heightCm: profile.heightCm,
+        weightKg: latestWeight?.weightKg ?? null,
+        activityBurn: todayActivityBurn,
+      }),
+    [profile.heightCm, latestWeight?.weightKg, todayActivityBurn],
+  );
 
   const handleParse = async (text: string) => {
     await submitParse(text);
@@ -34,7 +47,7 @@ export default function TodayScreen() {
         scrollEventThrottle={16}>
         <Text style={styles.heading}>Today</Text>
         <LogDateSelector logDate={logDate} today={today} onChange={setLogDate} />
-        <DailySummaryCard summary={todaySummary} />
+        <DailySummaryCard summary={todaySummary} targets={macroTargets} />
         <ActivityBurnCard summary={todayActivityBurn} />
         <View style={styles.actions}>
           <Pressable style={styles.primaryAction} onPress={() => setModalVisible(true)}>
