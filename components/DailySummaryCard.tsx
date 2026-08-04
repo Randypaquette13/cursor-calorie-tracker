@@ -19,9 +19,9 @@ export function DailySummaryCard({
 }: DailySummaryCardProps) {
   const targetHint =
     targets?.basis === 'activity'
-      ? 'Targets include logged activity'
+      ? 'Targets include logged activity and update when activity changes'
       : targets?.basis === 'bmr'
-        ? 'Targets based on height and weight (BMR)'
+        ? 'Targets based on height and weight (BMR). Ideals will increase when you log activity.'
         : null;
 
   return (
