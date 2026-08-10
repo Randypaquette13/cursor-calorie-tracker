@@ -13,8 +13,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SpeechMicButton } from '@/components/SpeechMicButton';
 import { Text } from '@/components/Themed';
 import { useAiProvider } from '@/hooks/useAiProvider';
+import { isSpeechRecognitionAvailable } from '@/utils/speechRecognitionAvailable';
 
 interface AddFoodModalProps {
   visible: boolean;
@@ -25,8 +27,10 @@ interface AddFoodModalProps {
 export function AddFoodModal({ visible, onClose, onSubmit }: AddFoodModalProps) {
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [listening, setListening] = useState(false);
   const insets = useSafeAreaInsets();
   const { label: providerLabel, refresh: refreshProvider } = useAiProvider();
+  const voiceAvailable = isSpeechRecognitionAvailable();
 
   const handleSubmit = async () => {
     const trimmed = text.trim();
@@ -68,19 +72,29 @@ export function AddFoodModal({ visible, onClose, onSubmit }: AddFoodModalProps) 
             contentContainerStyle={styles.sheetContent}>
             <Text style={styles.title}>Log food</Text>
             <Text style={styles.subtitle}>
-              Describe what you ate, or use a name from My Foods (e.g. &quot;usual shake&quot;).{' '}
-              {providerLabel} will estimate calories and macros in the background — you can close
-              the app while it works.
+              {listening
+                ? 'Listening… tap the red stop button when you are done speaking.'
+                : voiceAvailable
+                  ? `Describe what you ate, or tap the mic and speak. Names from My Foods work too. ${providerLabel} estimates calories and macros in the background — you can close the app while it works.`
+                  : `Describe what you ate, or use a name from My Foods (e.g. "usual shake"). ${providerLabel} will estimate calories and macros in the background — you can close the app while it works.`}
             </Text>
-            <TextInput
-              style={styles.input}
-              placeholder='e.g. "2 eggs, toast with butter, and black coffee for breakfast"'
-              placeholderTextColor="#9CA3AF"
-              value={text}
-              onChangeText={setText}
-              multiline
-              editable={!submitting}
-            />
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                placeholder='e.g. "2 eggs, toast with butter, and black coffee for breakfast"'
+                placeholderTextColor="#9CA3AF"
+                value={text}
+                onChangeText={setText}
+                multiline
+                editable={!submitting && !listening}
+              />
+              <SpeechMicButton
+                disabled={submitting}
+                text={text}
+                onChangeText={setText}
+                onListeningChange={setListening}
+              />
+            </View>
             <View style={styles.actions}>
               <Pressable style={styles.secondaryButton} onPress={onClose} disabled={submitting}>
                 <Text style={styles.secondaryText}>Cancel</Text>
@@ -131,7 +145,13 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 20,
   },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+  },
   input: {
+    flex: 1,
     minHeight: 100,
     maxHeight: 160,
     borderWidth: 1,
