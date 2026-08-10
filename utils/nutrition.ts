@@ -196,3 +196,63 @@ export function formatFullNutrition(entry: {
 }) {
   return formatMacroLine(entry);
 }
+
+export interface ScaledNutrition {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  caloriesMin: number;
+  caloriesMax: number;
+  proteinMin: number;
+  proteinMax: number;
+  carbsMin: number;
+  carbsMax: number;
+  fatMin: number;
+  fatMax: number;
+}
+
+export function effectiveServings(servings: number | null | undefined) {
+  const value = servings ?? 1;
+  return Number.isFinite(value) && value > 0 ? value : 1;
+}
+
+export function effectiveNutrition(entry: {
+  servings?: number | null;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  caloriesMin?: number | null;
+  caloriesMax?: number | null;
+  proteinMin?: number | null;
+  proteinMax?: number | null;
+  carbsMin?: number | null;
+  carbsMax?: number | null;
+  fatMin?: number | null;
+  fatMax?: number | null;
+}): ScaledNutrition {
+  const multiplier = effectiveServings(entry.servings);
+  const scale = (value: number) => Math.round(value * multiplier);
+
+  return {
+    calories: scale(entry.calories),
+    protein: scale(entry.protein),
+    carbs: scale(entry.carbs),
+    fat: scale(entry.fat),
+    caloriesMin: scale(entry.caloriesMin ?? entry.calories),
+    caloriesMax: scale(entry.caloriesMax ?? entry.calories),
+    proteinMin: scale(entry.proteinMin ?? entry.protein),
+    proteinMax: scale(entry.proteinMax ?? entry.protein),
+    carbsMin: scale(entry.carbsMin ?? entry.carbs),
+    carbsMax: scale(entry.carbsMax ?? entry.carbs),
+    fatMin: scale(entry.fatMin ?? entry.fat),
+    fatMax: scale(entry.fatMax ?? entry.fat),
+  };
+}
+
+export function formatServingsLabel(servings: number | null | undefined) {
+  const value = effectiveServings(servings);
+  if (value === 1) return null;
+  return Number.isInteger(value) ? `×${value}` : `×${value.toFixed(1)}`;
+}
