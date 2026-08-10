@@ -11,6 +11,7 @@ import { StravaActivitiesCard, StravaConnectCard } from '@/components/StravaSect
 import { SettingsLinkCard } from '@/components/SettingsLinkCard';
 import { Text } from '@/components/Themed';
 import { TAB_BAR_CLEARANCE } from '@/constants/layout';
+import { useAiProvider } from '@/hooks/useAiProvider';
 import { useActivity } from '@/context/ActivityContext';
 import { useActivityJobs } from '@/context/ActivityJobsContext';
 import { useFood } from '@/context/FoodContext';
@@ -29,6 +30,7 @@ export default function ActivityScreen() {
   const { displayJobs, submitActivityParse, dismissJob, retryJob } = useActivityJobs();
   const { connection, loadActivitiesForDate } = useStrava();
   const { onScroll } = useTabBar();
+  const { label: providerLabel } = useAiProvider();
   const [modalVisible, setModalVisible] = useState(false);
   const [stravaActivities, setStravaActivities] = useState<StravaActivitySummary[]>([]);
   const [stravaLoading, setStravaLoading] = useState(false);
@@ -131,8 +133,8 @@ export default function ActivityScreen() {
             </>
           ) : (
             <Text style={styles.heroEmpty}>
-              Describe your day below and Cursor will estimate total calories burned, including
-              your BMR.
+              Describe your day below and {providerLabel} will estimate total calories burned,
+              including your BMR.
             </Text>
           )}
         </View>

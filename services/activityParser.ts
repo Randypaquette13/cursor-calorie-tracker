@@ -1,41 +1,29 @@
 import * as SecureStore from 'expo-secure-store';
 
-import { getStoredApiKey, fetchRunSnapshot, runStatusError } from '@/services/cursorParser';
+import {
+  getAiProvider,
+  getStoredApiKeyForProvider,
+  missingApiKeyMessage,
+} from '@/services/aiProviderSettings';
+import { parseActivityWithClaude } from '@/services/claudeParser';
+import {
+  ACTIVITY_SYSTEM_PROMPT,
+  buildFollowUpActivityPrompt,
+  buildInitialActivityPrompt,
+} from '@/services/parsePrompts';
+import {
+  fetchCursorRunSnapshot,
+  runStatusError,
+  type CursorRunStatus,
+} from '@/services/cursorParser';
 import type { ParsedActivityResponse } from '@/types/profile';
 import type { StravaActivitySummary } from '@/types/strava';
-import { ACTIVITY_SCORE_EXPLANATION } from '@/utils/activityScore';
-import { formatHeightCm, formatWeightKg } from '@/utils/bodyMetrics';
-import { formatStravaActivitiesForPrompt, parseStravaActivitiesJson } from '@/utils/strava';
+import { parseStravaActivitiesJson } from '@/utils/strava';
 
 const API_BASE = 'https://api.cursor.com/v1';
 const ACTIVITY_AGENT_ID_KEY = 'cursor_activity_agent_id';
 const ACTIVITY_PARSER_VERSION_KEY = 'cursor_activity_parser_version';
 const ACTIVITY_PARSER_VERSION = '2';
-
-const SYSTEM_PROMPT = `You are a daily calorie expenditure estimation assistant.
-
-Given the user's height, weight, a free-text description of what they did today (including an activity score ${ACTIVITY_SCORE_EXPLANATION}), and any Strava activities recorded that day, estimate their whole-day calorie burn.
-
-Respond with ONLY valid JSON (no markdown, no commentary) in this exact shape:
-{
-  "bmrCalories": number,
-  "activityCalories": number,
-  "totalBurnedCalories": number,
-  "activityScore": number,
-  "summary": "string"
-}
-
-Rules:
-- Compute BMR using Mifflin-St Jeor with the provided height and weight. Assume age 30 and sex male unless the user states otherwise.
-- bmrCalories is the estimated basal metabolic rate for the full day.
-- activityCalories is additional calories burned from movement/exercise beyond a sedentary day, informed by the activity description, Strava workout data when provided, and the activity score (${ACTIVITY_SCORE_EXPLANATION}).
-- totalBurnedCalories must equal bmrCalories + activityCalories (round to whole numbers).
-- Extract activityScore from the user's text when they provide a 0-100 value; otherwise infer a reasonable score from their description using this scale: ${ACTIVITY_SCORE_EXPLANATION}
-- activityScore must be between 0 and 100.
-- summary is one or two sentences explaining the estimate.
-- All calorie values must be positive whole numbers.`;
-
-const FOLLOW_UP_SUFFIX = `Respond with ONLY valid JSON (no markdown, no commentary) in the same shape as before.`;
 
 async function cursorFetch(path: string, apiKey: string, init?: RequestInit) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -68,7 +56,7 @@ async function createActivityAgent(apiKey: string) {
     method: 'POST',
     body: JSON.stringify({
       name: 'Activity Burn Estimator',
-      prompt: { text: SYSTEM_PROMPT },
+      prompt: { text: ACTIVITY_SYSTEM_PROMPT },
     }),
   })) as { agent: { id: string } };
 
@@ -87,52 +75,13 @@ async function getOrCreateActivityAgent(apiKey: string) {
   return { agentId, isNewAgent: true };
 }
 
-function buildInitialActivityPrompt(
+async function startCursorActivityParseRun(
   input: string,
   heightCm: number,
   weightKg: number,
-  stravaActivities: StravaActivitySummary[] = [],
-): string {
-  return `${SYSTEM_PROMPT}
-
-User stats:
-- Height: ${formatHeightCm(heightCm)} (${Math.round(heightCm)} cm)
-- Weight: ${formatWeightKg(weightKg)} (${Math.round(weightKg * 10) / 10} kg)
-${formatStravaActivitiesForPrompt(stravaActivities)}
-
-Activity description:
-${input}`;
-}
-
-function buildFollowUpActivityPrompt(
-  input: string,
-  heightCm: number,
-  weightKg: number,
-  stravaActivities: StravaActivitySummary[] = [],
-): string {
-  return `User stats:
-- Height: ${formatHeightCm(heightCm)} (${Math.round(heightCm)} cm)
-- Weight: ${formatWeightKg(weightKg)} (${Math.round(weightKg * 10) / 10} kg)
-${formatStravaActivitiesForPrompt(stravaActivities)}
-
-Activity description:
-${input}
-
-${FOLLOW_UP_SUFFIX}`;
-}
-
-export async function startActivityParseRun(
-  input: string,
-  heightCm: number,
-  weightKg: number,
-  stravaActivitiesJson?: string | null,
+  stravaActivities: StravaActivitySummary[],
+  apiKey: string,
 ) {
-  const stravaActivities = parseStravaActivitiesJson(stravaActivitiesJson);
-  const apiKey = await getStoredApiKey();
-  if (!apiKey) {
-    throw new Error('Add your Cursor API key in Settings first.');
-  }
-
   const { agentId, isNewAgent } = await getOrCreateActivityAgent(apiKey);
   const promptText = isNewAgent
     ? buildInitialActivityPrompt(input, heightCm, weightKg, stravaActivities)
@@ -152,7 +101,54 @@ export async function startActivityParseRun(
   };
 }
 
-export { fetchRunSnapshot, runStatusError };
+export type ActivityParseRunStart =
+  | {
+      mode: 'async';
+      agentId: string;
+      runId: string;
+      apiKey: string;
+    }
+  | {
+      mode: 'sync';
+      resultText: string;
+    };
+
+export async function startActivityParseRun(
+  input: string,
+  heightCm: number,
+  weightKg: number,
+  stravaActivitiesJson?: string | null,
+): Promise<ActivityParseRunStart> {
+  const stravaActivities = parseStravaActivitiesJson(stravaActivitiesJson);
+  const provider = await getAiProvider();
+  const apiKey = await getStoredApiKeyForProvider(provider);
+
+  if (!apiKey) {
+    throw new Error(missingApiKeyMessage(provider));
+  }
+
+  if (provider === 'claude') {
+    const resultText = await parseActivityWithClaude(
+      apiKey,
+      input,
+      heightCm,
+      weightKg,
+      stravaActivities,
+    );
+    return { mode: 'sync', resultText };
+  }
+
+  const run = await startCursorActivityParseRun(
+    input,
+    heightCm,
+    weightKg,
+    stravaActivities,
+    apiKey,
+  );
+  return { mode: 'async', ...run };
+}
+
+export { fetchCursorRunSnapshot as fetchRunSnapshot, runStatusError, type CursorRunStatus };
 
 function extractActivityJson(text: string): ParsedActivityResponse {
   const trimmed = text.trim();
@@ -165,14 +161,11 @@ function extractActivityJson(text: string): ParsedActivityResponse {
   const totalBurnedCalories = Math.round(
     Number(parsed.totalBurnedCalories ?? bmrCalories + activityCalories),
   );
-  const activityScore = Math.min(
-    100,
-    Math.max(0, Math.round(Number(parsed.activityScore))),
-  );
+  const activityScore = Math.min(100, Math.max(0, Math.round(Number(parsed.activityScore))));
   const summary = String(parsed.summary ?? '').trim() || 'Daily activity estimate';
 
   if (!Number.isFinite(bmrCalories) || bmrCalories <= 0) {
-    throw new Error('Cursor returned an invalid BMR estimate.');
+    throw new Error('Parser returned an invalid BMR estimate.');
   }
 
   return {
@@ -187,3 +180,5 @@ function extractActivityJson(text: string): ParsedActivityResponse {
 export function parseActivityRunResult(resultText: string): ParsedActivityResponse {
   return extractActivityJson(resultText);
 }
+
+export { getCursorApiKey as getStoredApiKey } from '@/services/aiProviderSettings';

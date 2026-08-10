@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/Themed';
+import { useAiProvider } from '@/hooks/useAiProvider';
 
 interface AddFoodModalProps {
   visible: boolean;
@@ -25,6 +26,7 @@ export function AddFoodModal({ visible, onClose, onSubmit }: AddFoodModalProps) 
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const insets = useSafeAreaInsets();
+  const { label: providerLabel, refresh: refreshProvider } = useAiProvider();
 
   const handleSubmit = async () => {
     const trimmed = text.trim();
@@ -45,6 +47,12 @@ export function AddFoodModal({ visible, onClose, onSubmit }: AddFoodModalProps) 
     }
   };
 
+  useEffect(() => {
+    if (visible) {
+      void refreshProvider();
+    }
+  }, [refreshProvider, visible]);
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
@@ -60,9 +68,9 @@ export function AddFoodModal({ visible, onClose, onSubmit }: AddFoodModalProps) 
             contentContainerStyle={styles.sheetContent}>
             <Text style={styles.title}>Log food</Text>
             <Text style={styles.subtitle}>
-              Describe what you ate, or use a name from My Foods (e.g. &quot;usual shake&quot;). Cursor
-              will estimate calories and macros in the background — you can close the app while it
-              works.
+              Describe what you ate, or use a name from My Foods (e.g. &quot;usual shake&quot;).{' '}
+              {providerLabel} will estimate calories and macros in the background — you can close
+              the app while it works.
             </Text>
             <TextInput
               style={styles.input}
@@ -84,7 +92,7 @@ export function AddFoodModal({ visible, onClose, onSubmit }: AddFoodModalProps) 
                 {submitting ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.primaryText}>Send to Cursor</Text>
+                  <Text style={styles.primaryText}>Send to {providerLabel}</Text>
                 )}
               </Pressable>
             </View>

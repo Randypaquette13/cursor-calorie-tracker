@@ -20,7 +20,7 @@ export function SettingsLinkCard({ compact = false }: SettingsLinkCardProps) {
           <Text style={styles.body}>
             {compact
               ? 'API keys, Strava, app info'
-              : 'Cursor API key, Strava credentials, and app build info'}
+              : 'AI provider, API keys, Strava, and app info'}
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />

@@ -3,6 +3,7 @@ import { format, parseISO } from 'date-fns';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/Themed';
+import { useAiProvider } from '@/hooks/useAiProvider';
 import type { ActivityParseJob } from '@/types/profile';
 
 interface InProgressActivityParseListProps {
@@ -24,6 +25,7 @@ export function InProgressActivityParseList({
   onDismiss,
   onRetry,
 }: InProgressActivityParseListProps) {
+  const { label: providerLabel } = useAiProvider();
   const activeJobs = jobs.filter((job) => job.status === 'queued' || job.status === 'running');
   const failedJobs = jobs.filter((job) => job.status === 'failed');
 
@@ -52,7 +54,7 @@ export function InProgressActivityParseList({
                   {job.rawInput}
                 </Text>
                 <Text style={styles.jobMeta}>
-                  {job.status === 'queued' ? 'Queued' : 'Estimating with Cursor'} ·{' '}
+                  {job.status === 'queued' ? 'Queued' : `Estimating with ${providerLabel}`} ·{' '}
                   {formatJobTime(job.createdAt)}
                 </Text>
               </View>
