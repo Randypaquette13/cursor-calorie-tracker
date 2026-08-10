@@ -1,41 +1,17 @@
 import * as SecureStore from 'expo-secure-store';
 
+import {
+  FOOD_SYSTEM_PROMPT,
+  buildFollowUpFoodParsePrompt,
+  buildInitialFoodParsePrompt,
+} from '@/services/parsePrompts';
 import type { ParsedFoodResponse, ParsedFoodItem, MealType, SavedFood } from '@/types/food';
 import { applyPortionRanges, nutritionFieldFromRecord } from '@/utils/nutrition';
 
 const API_BASE = 'https://api.cursor.com/v1';
 const AGENT_ID_KEY = 'cursor_parser_agent_id';
-const API_KEY_KEY = 'cursor_api_key';
 const PARSER_VERSION_KEY = 'cursor_parser_version';
 const PARSER_VERSION = '4';
-
-const SYSTEM_PROMPT = `You are a nutrition estimation assistant. Given a natural-language food description, estimate calories and macros.
-
-Respond with ONLY valid JSON (no markdown, no commentary) in this exact shape:
-{
-  "items": [
-    {
-      "name": "string",
-      "calories": { "min": number, "max": number },
-      "protein": { "min": number, "max": number },
-      "carbs": { "min": number, "max": number },
-      "fat": { "min": number, "max": number },
-      "mealType": "breakfast" | "lunch" | "dinner" | "snack" | null
-    }
-  ]
-}
-
-Rules:
-- Split multi-item meals into separate items when possible.
-- Infer mealType from words like breakfast/lunch/dinner/snack, otherwise null.
-- WEIGHED portions (grams, oz, lb, kg explicitly stated for that item): set min and max equal or within ~3% — the user measured mass.
-- WEIGHED but COMPOSITE/HOMEMADE (e.g. "200g of my chili", "150g homemade curry"): use a small range (~10%) because ingredient ratios are uncertain even when total weight is known.
-- NOT WEIGHED: default to a range with min lower than max. This includes cups, bowls, plates, "some", "a serving", restaurant portions, and any item without a scale weight.
-- Count-based items without weight (e.g. "2 eggs"): small range (~10%) is OK.
-- Volume measures without weight (cups, tbsp): moderate range (~15-25%).
-- Vague amounts ("some rice", "handful of nuts"): wider range (~25-40%).
-- All min/max values must be numbers with min <= max.
-- When the user mentions a saved food by name (exact or close match), use that food's description and known nutrition instead of guessing; use exact values (min = max) when saved nutrition is known.`;
 
 const FOLLOW_UP_SUFFIX = `Respond with ONLY valid JSON (no markdown, no commentary) in the same shape as before.`;
 
@@ -44,42 +20,6 @@ export type CursorRunStatus = 'CREATING' | 'RUNNING' | 'FINISHED' | 'ERROR' | 'C
 export interface CursorRunSnapshot {
   status: CursorRunStatus;
   result?: string;
-}
-
-function formatSavedFoodsForPrompt(savedFoods: SavedFood[]): string {
-  if (savedFoods.length === 0) return '';
-
-  const lines = savedFoods.map((food) => {
-    const known =
-      food.calories != null
-        ? ` Known nutrition: ${Math.round(food.calories)} cal, P ${Math.round(food.protein ?? 0)}g, C ${Math.round(food.carbs ?? 0)}g, F ${Math.round(food.fat ?? 0)}g.`
-        : '';
-    return `- "${food.name}": ${food.description}.${known}`;
-  });
-
-  return `\n\nThe user has saved these personal foods. When their input matches or refers to a saved food name, use that food's description and known nutrition (when provided) instead of guessing:\n${lines.join('\n')}`;
-}
-
-function buildInitialParsePrompt(input: string, savedFoods: SavedFood[]): string {
-  return `${SYSTEM_PROMPT}${formatSavedFoodsForPrompt(savedFoods)}\n\nFood description: ${input}`;
-}
-
-function buildFollowUpParsePrompt(input: string, savedFoods: SavedFood[]): string {
-  return `${formatSavedFoodsForPrompt(savedFoods)}\n\nFood description: ${input}\n\n${FOLLOW_UP_SUFFIX}`;
-}
-
-export async function getStoredApiKey() {
-  return SecureStore.getItemAsync(API_KEY_KEY);
-}
-
-export async function saveApiKey(apiKey: string) {
-  await SecureStore.setItemAsync(API_KEY_KEY, apiKey.trim());
-  await SecureStore.deleteItemAsync(AGENT_ID_KEY);
-}
-
-export async function clearApiKey() {
-  await SecureStore.deleteItemAsync(API_KEY_KEY);
-  await SecureStore.deleteItemAsync(AGENT_ID_KEY);
 }
 
 async function cursorFetch(path: string, apiKey: string, init?: RequestInit) {
@@ -113,7 +53,7 @@ async function createAgent(apiKey: string) {
     method: 'POST',
     body: JSON.stringify({
       name: 'Calorie Parser',
-      prompt: { text: SYSTEM_PROMPT },
+      prompt: { text: FOOD_SYSTEM_PROMPT },
     }),
   })) as { agent: { id: string } };
 
@@ -132,16 +72,11 @@ async function getOrCreateAgent(apiKey: string) {
   return { agentId, isNewAgent: true };
 }
 
-export async function startParseRun(input: string, savedFoods: SavedFood[] = []) {
-  const apiKey = await getStoredApiKey();
-  if (!apiKey) {
-    throw new Error('Add your Cursor API key in Settings first.');
-  }
-
+export async function startCursorFoodParseRun(input: string, savedFoods: SavedFood[] = [], apiKey: string) {
   const { agentId, isNewAgent } = await getOrCreateAgent(apiKey);
   const promptText = isNewAgent
-    ? buildInitialParsePrompt(input, savedFoods)
-    : buildFollowUpParsePrompt(input, savedFoods);
+    ? buildInitialFoodParsePrompt(input, savedFoods)
+    : buildFollowUpFoodParsePrompt(input, savedFoods);
 
   const runData = (await cursorFetch(`/agents/${agentId}/runs`, apiKey, {
     method: 'POST',
@@ -159,7 +94,7 @@ export async function startParseRun(input: string, savedFoods: SavedFood[] = [])
   };
 }
 
-export async function fetchRunSnapshot(
+export async function fetchCursorRunSnapshot(
   agentId: string,
   runId: string,
   apiKey: string,
@@ -182,7 +117,7 @@ function extractJson(text: string): ParsedFoodResponse {
 
   const parsed = JSON.parse(candidate) as ParsedFoodResponse;
   if (!parsed.items || !Array.isArray(parsed.items) || parsed.items.length === 0) {
-    throw new Error('Cursor returned an empty food parse.');
+    throw new Error('Parser returned an empty food parse.');
   }
 
   return {
@@ -258,3 +193,14 @@ export function runStatusError(status: CursorRunStatus) {
   }
   return null;
 }
+
+// Backward-compatible re-exports
+export { fetchCursorRunSnapshot as fetchRunSnapshot };
+export { startCursorFoodParseRun as startParseRun };
+export {
+  getCursorApiKey as getStoredApiKey,
+  saveCursorApiKey as saveApiKey,
+  clearCursorApiKey as clearApiKey,
+} from '@/services/aiProviderSettings';
+
+export { FOLLOW_UP_SUFFIX };

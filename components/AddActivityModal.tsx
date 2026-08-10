@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/Themed';
+import { useAiProvider } from '@/hooks/useAiProvider';
 import {
   ACTIVITY_SCORE_EXPLANATION,
   ACTIVITY_SCORE_SHORT,
@@ -29,6 +30,7 @@ export function AddActivityModal({ visible, onClose, onSubmit }: AddActivityModa
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const insets = useSafeAreaInsets();
+  const { label: providerLabel, refresh: refreshProvider } = useAiProvider();
 
   const handleSubmit = async () => {
     const trimmed = text.trim();
@@ -49,6 +51,12 @@ export function AddActivityModal({ visible, onClose, onSubmit }: AddActivityModa
     }
   };
 
+  useEffect(() => {
+    if (visible) {
+      void refreshProvider();
+    }
+  }, [refreshProvider, visible]);
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
@@ -65,7 +73,8 @@ export function AddActivityModal({ visible, onClose, onSubmit }: AddActivityModa
             <Text style={styles.title}>Log activity</Text>
             <Text style={styles.subtitle}>
               What did you do today? Rate how the day felt overall on a {ACTIVITY_SCORE_EXPLANATION}{' '}
-              Cursor estimates your daily BMR and activity burn using your height and weight.
+              {providerLabel} estimates your daily BMR and activity burn using your height and
+              weight.
             </Text>
             <Text style={styles.scaleHint}>{ACTIVITY_SCORE_SHORT}</Text>
             <TextInput
@@ -88,7 +97,7 @@ export function AddActivityModal({ visible, onClose, onSubmit }: AddActivityModa
                 {submitting ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.primaryText}>Send to Cursor</Text>
+                  <Text style={styles.primaryText}>Send to {providerLabel}</Text>
                 )}
               </Pressable>
             </View>

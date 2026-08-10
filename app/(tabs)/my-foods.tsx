@@ -5,6 +5,7 @@ import { SavedFoodModal } from '@/components/SavedFoodModal';
 import { Text } from '@/components/Themed';
 import { useSavedFoods } from '@/context/SavedFoodsContext';
 import { useTabBar } from '@/context/TabBarContext';
+import { useAiProvider } from '@/hooks/useAiProvider';
 import type { SavedFood } from '@/types/food';
 import { formatFullNutrition } from '@/utils/nutrition';
 import { TAB_BAR_CLEARANCE } from '@/constants/layout';
@@ -22,6 +23,7 @@ function formatNutrition(food: SavedFood) {
 export default function MyFoodsScreen() {
   const { foods, addFood, editFood, removeFood } = useSavedFoods();
   const { onScroll } = useTabBar();
+  const { label: providerLabel } = useAiProvider();
   const [modalVisible, setModalVisible] = useState(false);
   const [editingFood, setEditingFood] = useState<SavedFood | null>(null);
 
@@ -55,8 +57,8 @@ export default function MyFoodsScreen() {
         scrollEventThrottle={16}>
         <Text style={styles.heading}>My Foods</Text>
         <Text style={styles.intro}>
-          Save foods you eat often. When you log by voice or text, say the name — Cursor will use
-          your description instead of guessing every time.
+          Save foods you eat often. When you log by voice or text, say the name — {providerLabel}{' '}
+          will use your description instead of guessing every time.
         </Text>
 
         <Pressable style={styles.addButton} onPress={openCreate}>

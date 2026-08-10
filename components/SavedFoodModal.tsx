@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/Themed';
+import { useAiProvider } from '@/hooks/useAiProvider';
 import type { SavedFoodInput } from '@/context/SavedFoodsContext';
 import type { SavedFood } from '@/types/food';
 
@@ -38,6 +39,7 @@ export function SavedFoodModal({ visible, food, onClose, onSave }: SavedFoodModa
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
   const [saving, setSaving] = useState(false);
+  const { label: providerLabel } = useAiProvider();
 
   useEffect(() => {
     if (!visible) return;
@@ -84,8 +86,8 @@ export function SavedFoodModal({ visible, food, onClose, onSave }: SavedFoodModa
             contentContainerStyle={styles.sheetContent}>
             <Text style={styles.title}>{food ? 'Edit food' : 'Add food'}</Text>
             <Text style={styles.subtitle}>
-              Give it a short name you will say when logging, plus a description Cursor can use to
-              estimate nutrition.
+              Give it a short name you will say when logging, plus a description {providerLabel} can
+              use to estimate nutrition.
             </Text>
 
             <Text style={styles.label}>Name</Text>

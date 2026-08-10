@@ -15,12 +15,12 @@ import {
   runStatusError,
   startActivityParseRun,
 } from '@/services/activityParser';
-import { getStoredApiKey } from '@/services/cursorParser';
 import {
-  fetchStravaActivitiesForDate,
-  getStravaConnectionInfo,
-  serializeStravaActivities,
-} from '@/services/strava';
+  getAiProvider,
+  getStoredApiKeyForProvider,
+  missingApiKeyMessage,
+  providerLabel,
+} from '@/services/aiProviderSettings';
 import {
   deleteActivityParseJob,
   getDisplayActivityParseJobs,
@@ -28,6 +28,11 @@ import {
   insertActivityParseJob,
   updateActivityParseJob,
 } from '@/services/database';
+import {
+  fetchStravaActivitiesForDate,
+  getStravaConnectionInfo,
+  serializeStravaActivities,
+} from '@/services/strava';
 import type { ActivityEntryInput, ActivityParseJob } from '@/types/profile';
 
 interface ActivityJobsContextValue {
@@ -102,18 +107,21 @@ export function ActivityJobsProvider({
   const pollRunningJob = useCallback(
     async (job: ActivityParseJob) => {
       if (!job.agentId || !job.runId) {
-        await failJob(job, 'Missing Cursor run information.');
+        const label = providerLabel(await getAiProvider());
+        await failJob(job, `Missing ${label} run information.`);
         await refreshDisplayJobs();
         return;
       }
 
-      const apiKey = await getStoredApiKey();
+      const provider = await getAiProvider();
+      const apiKey = await getStoredApiKeyForProvider(provider);
       if (!apiKey) {
-        await failJob(job, 'Add your Cursor API key in Settings first.');
+        await failJob(job, missingApiKeyMessage(provider));
         await refreshDisplayJobs();
         return;
       }
 
+      const label = providerLabel(provider);
       const deadline = Date.now() + RUN_TIMEOUT_MS;
 
       while (Date.now() < deadline) {
@@ -137,7 +145,7 @@ export function ActivityJobsProvider({
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
       }
 
-      await failJob(job, 'Cursor took too long to estimate activity burn. Try again.');
+      await failJob(job, `${label} took too long to estimate activity burn. Try again.`);
       await refreshDisplayJobs();
     },
     [completeJob, failJob, refreshDisplayJobs],
@@ -155,25 +163,38 @@ export function ActivityJobsProvider({
       }
 
       try {
-        const { agentId, runId } = await startActivityParseRun(
+        const run = await startActivityParseRun(
           job.rawInput,
           heightCm,
           weightKg,
           job.stravaActivitiesJson,
         );
 
+        if (run.mode === 'sync') {
+          await updateActivityParseJob(job.id, {
+            status: 'running',
+            agentId: null,
+            runId: null,
+            errorMessage: null,
+          });
+          await refreshDisplayJobs();
+          await completeJob(job, run.resultText);
+          await refreshDisplayJobs();
+          return;
+        }
+
         await updateActivityParseJob(job.id, {
           status: 'running',
-          agentId,
-          runId,
+          agentId: run.agentId,
+          runId: run.runId,
           errorMessage: null,
         });
 
         const runningJob: ActivityParseJob = {
           ...job,
           status: 'running',
-          agentId,
-          runId,
+          agentId: run.agentId,
+          runId: run.runId,
           errorMessage: null,
         };
 
@@ -199,7 +220,7 @@ export function ActivityJobsProvider({
         await refreshDisplayJobs();
       }
     },
-    [failJob, heightCm, pollRunningJob, refreshDisplayJobs, weightKg],
+    [completeJob, failJob, heightCm, pollRunningJob, refreshDisplayJobs, weightKg],
   );
 
   const processQueue = useCallback(async () => {
@@ -212,7 +233,11 @@ export function ActivityJobsProvider({
         const runningJob = jobs.find((job) => job.status === 'running');
 
         if (runningJob) {
-          await pollRunningJob(runningJob);
+          if (runningJob.agentId && runningJob.runId) {
+            await pollRunningJob(runningJob);
+          } else {
+            await startJobRun(runningJob);
+          }
           await refreshDisplayJobs();
           continue;
         }

@@ -12,7 +12,16 @@ import Constants from 'expo-constants';
 import { CopyableText } from '@/components/CopyableText';
 import { Text } from '@/components/Themed';
 import { StravaConnectCard } from '@/components/StravaSection';
-import { clearApiKey, getStoredApiKey, saveApiKey } from '@/services/cursorParser';
+import {
+  clearAnthropicApiKey,
+  clearCursorApiKey,
+  getAiProvider,
+  getAnthropicApiKey,
+  getCursorApiKey,
+  saveAiProvider,
+  saveAnthropicApiKey,
+  saveCursorApiKey,
+} from '@/services/aiProviderSettings';
 import {
   clearStravaCredentials,
   getStravaCallbackDomain,
@@ -20,10 +29,14 @@ import {
   getStravaRedirectUri,
   saveStravaCredentials,
 } from '@/services/strava';
+import { AI_PROVIDERS, AI_PROVIDER_LABELS, type AiProvider } from '@/types/aiProvider';
 
 export default function SettingsScreen() {
-  const [apiKey, setApiKey] = useState('');
-  const [saved, setSaved] = useState(false);
+  const [provider, setProvider] = useState<AiProvider>('cursor');
+  const [cursorApiKey, setCursorApiKey] = useState('');
+  const [cursorSaved, setCursorSaved] = useState(false);
+  const [anthropicApiKey, setAnthropicApiKey] = useState('');
+  const [anthropicSaved, setAnthropicSaved] = useState(false);
   const [stravaClientId, setStravaClientId] = useState('');
   const [stravaClientSecret, setStravaClientSecret] = useState('');
   const [stravaSaved, setStravaSaved] = useState(false);
@@ -35,10 +48,19 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     (async () => {
-      const existing = await getStoredApiKey();
-      if (existing) {
-        setApiKey(existing);
-        setSaved(true);
+      const storedProvider = await getAiProvider();
+      setProvider(storedProvider);
+
+      const existingCursorKey = await getCursorApiKey();
+      if (existingCursorKey) {
+        setCursorApiKey(existingCursorKey);
+        setCursorSaved(true);
+      }
+
+      const existingAnthropicKey = await getAnthropicApiKey();
+      if (existingAnthropicKey) {
+        setAnthropicApiKey(existingAnthropicKey);
+        setAnthropicSaved(true);
       }
 
       const stravaCredentials = await getStravaCredentials();
@@ -52,21 +74,43 @@ export default function SettingsScreen() {
     })();
   }, []);
 
-  const handleSave = async () => {
-    const trimmed = apiKey.trim();
+  const handleProviderChange = async (next: AiProvider) => {
+    setProvider(next);
+    await saveAiProvider(next);
+  };
+
+  const handleSaveCursorKey = async () => {
+    const trimmed = cursorApiKey.trim();
     if (!trimmed) {
       Alert.alert('API key required', 'Paste your Cursor API key from cursor.com/dashboard/api');
       return;
     }
-    await saveApiKey(trimmed);
-    setSaved(true);
+    await saveCursorApiKey(trimmed);
+    setCursorSaved(true);
     Alert.alert('Saved', 'Your Cursor API key is stored securely on this device.');
   };
 
-  const handleClear = async () => {
-    await clearApiKey();
-    setApiKey('');
-    setSaved(false);
+  const handleClearCursorKey = async () => {
+    await clearCursorApiKey();
+    setCursorApiKey('');
+    setCursorSaved(false);
+  };
+
+  const handleSaveAnthropicKey = async () => {
+    const trimmed = anthropicApiKey.trim();
+    if (!trimmed) {
+      Alert.alert('API key required', 'Paste your Anthropic API key from console.anthropic.com');
+      return;
+    }
+    await saveAnthropicApiKey(trimmed);
+    setAnthropicSaved(true);
+    Alert.alert('Saved', 'Your Anthropic API key is stored securely on this device.');
+  };
+
+  const handleClearAnthropicKey = async () => {
+    await clearAnthropicApiKey();
+    setAnthropicApiKey('');
+    setAnthropicSaved(false);
   };
 
   const handleSaveStrava = async () => {
@@ -98,17 +142,41 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
+        <Text style={styles.cardTitle}>AI service provider</Text>
+        <Text style={styles.cardBody}>
+          Choose which service parses natural-language food logs and activity estimates. You can
+          store API keys for both and switch anytime.
+        </Text>
+        <View style={styles.providerRow}>
+          {AI_PROVIDERS.map((option) => {
+            const selected = provider === option;
+            return (
+              <Pressable
+                key={option}
+                style={[styles.providerOption, selected && styles.providerOptionSelected]}
+                onPress={() => handleProviderChange(option)}>
+                <Text
+                  style={[styles.providerOptionText, selected && styles.providerOptionTextSelected]}>
+                  {AI_PROVIDER_LABELS[option]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.card}>
         <Text style={styles.cardTitle}>Cursor API key</Text>
         <Text style={styles.cardBody}>
-          Natural-language food parsing uses the Cursor Cloud Agents API. Get a key from{' '}
+          Natural-language parsing with Cursor uses the Cloud Agents API. Get a key from{' '}
           cursor.com/dashboard/api and paste it below. It stays on your phone in secure storage.
         </Text>
         <TextInput
           style={styles.input}
-          value={apiKey}
+          value={cursorApiKey}
           onChangeText={(value) => {
-            setApiKey(value);
-            setSaved(false);
+            setCursorApiKey(value);
+            setCursorSaved(false);
           }}
           placeholder="crsr_..."
           placeholderTextColor="#9CA3AF"
@@ -117,10 +185,39 @@ export default function SettingsScreen() {
           secureTextEntry
         />
         <View style={styles.actions}>
-          <Pressable style={styles.primaryButton} onPress={handleSave}>
-            <Text style={styles.primaryText}>{saved ? 'Update key' : 'Save key'}</Text>
+          <Pressable style={styles.primaryButton} onPress={handleSaveCursorKey}>
+            <Text style={styles.primaryText}>{cursorSaved ? 'Update key' : 'Save key'}</Text>
           </Pressable>
-          <Pressable style={styles.secondaryButton} onPress={handleClear}>
+          <Pressable style={styles.secondaryButton} onPress={handleClearCursorKey}>
+            <Text style={styles.secondaryText}>Clear</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Anthropic API key</Text>
+        <Text style={styles.cardBody}>
+          Natural-language parsing with Claude uses the Anthropic Messages API. Get a key from{' '}
+          console.anthropic.com and paste it below. It stays on your phone in secure storage.
+        </Text>
+        <TextInput
+          style={styles.input}
+          value={anthropicApiKey}
+          onChangeText={(value) => {
+            setAnthropicApiKey(value);
+            setAnthropicSaved(false);
+          }}
+          placeholder="sk-ant-..."
+          placeholderTextColor="#9CA3AF"
+          autoCapitalize="none"
+          autoCorrect={false}
+          secureTextEntry
+        />
+        <View style={styles.actions}>
+          <Pressable style={styles.primaryButton} onPress={handleSaveAnthropicKey}>
+            <Text style={styles.primaryText}>{anthropicSaved ? 'Update key' : 'Save key'}</Text>
+          </Pressable>
+          <Pressable style={styles.secondaryButton} onPress={handleClearAnthropicKey}>
             <Text style={styles.secondaryText}>Clear</Text>
           </Pressable>
         </View>
@@ -227,6 +324,29 @@ const styles = StyleSheet.create({
   cardBody: {
     color: '#6B7280',
     lineHeight: 21,
+  },
+  providerRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  providerOption: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  providerOptionSelected: {
+    borderColor: '#059669',
+    backgroundColor: '#ECFDF5',
+  },
+  providerOptionText: {
+    color: '#374151',
+    fontWeight: '600',
+  },
+  providerOptionTextSelected: {
+    color: '#047857',
   },
   inlineMono: {
     color: '#374151',

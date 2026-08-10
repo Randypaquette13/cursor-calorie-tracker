@@ -9,13 +9,14 @@ import {
 } from 'react';
 import { AppState } from 'react-native';
 
+import { getAiProvider, getStoredApiKeyForProvider, missingApiKeyMessage, providerLabel } from '@/services/aiProviderSettings';
 import {
-  fetchRunSnapshot,
-  getStoredApiKey,
   parseRunResult,
+  parseTimeoutMessage,
+  pollFoodParseRun,
   runStatusError,
-  startParseRun,
-} from '@/services/cursorParser';
+  startFoodParseRun,
+} from '@/services/foodParser';
 import {
   deleteParseJob,
   getDisplayParseJobs,
@@ -104,22 +105,25 @@ export function ParseJobsProvider({ children, logDate, onParsed }: ParseJobsProv
   const pollRunningJob = useCallback(
     async (job: ParseJob) => {
       if (!job.agentId || !job.runId) {
-        await failJob(job, 'Missing Cursor run information.');
+        const label = providerLabel(await getAiProvider());
+        await failJob(job, `Missing ${label} run information.`);
         return;
       }
 
-      const apiKey = await getStoredApiKey();
+      const provider = await getAiProvider();
+      const apiKey = await getStoredApiKeyForProvider(provider);
       if (!apiKey) {
-        await failJob(job, 'Add your Cursor API key in Settings first.');
+        await failJob(job, missingApiKeyMessage(provider));
         return;
       }
 
+      const label = providerLabel(provider);
       const deadline = Date.now() + RUN_TIMEOUT_MS;
 
       while (Date.now() < deadline) {
         if (!mountedRef.current) return;
 
-        const snapshot = await fetchRunSnapshot(job.agentId, job.runId, apiKey);
+        const snapshot = await pollFoodParseRun(job.agentId, job.runId, apiKey);
 
         if (snapshot.status === 'FINISHED') {
           await completeJob(job, snapshot.result ?? '');
@@ -137,7 +141,7 @@ export function ParseJobsProvider({ children, logDate, onParsed }: ParseJobsProv
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
       }
 
-      await failJob(job, 'Cursor took too long to parse this meal. Try again.');
+      await failJob(job, parseTimeoutMessage(label));
       await refreshDisplayJobs();
     },
     [completeJob, failJob, refreshDisplayJobs],
@@ -147,20 +151,33 @@ export function ParseJobsProvider({ children, logDate, onParsed }: ParseJobsProv
     async (job: ParseJob) => {
       try {
         const savedFoods = await getSavedFoods();
-        const { agentId, runId } = await startParseRun(job.rawInput, savedFoods);
+        const run = await startFoodParseRun(job.rawInput, savedFoods);
+
+        if (run.mode === 'sync') {
+          await updateParseJob(job.id, {
+            status: 'running',
+            agentId: null,
+            runId: null,
+            errorMessage: null,
+          });
+          await refreshDisplayJobs();
+          await completeJob(job, run.resultText);
+          await refreshDisplayJobs();
+          return;
+        }
 
         await updateParseJob(job.id, {
           status: 'running',
-          agentId,
-          runId,
+          agentId: run.agentId,
+          runId: run.runId,
           errorMessage: null,
         });
 
         const runningJob: ParseJob = {
           ...job,
           status: 'running',
-          agentId,
-          runId,
+          agentId: run.agentId,
+          runId: run.runId,
           errorMessage: null,
         };
 
@@ -186,7 +203,7 @@ export function ParseJobsProvider({ children, logDate, onParsed }: ParseJobsProv
         await refreshDisplayJobs();
       }
     },
-    [failJob, pollRunningJob, refreshDisplayJobs],
+    [completeJob, failJob, pollRunningJob, refreshDisplayJobs],
   );
 
   const processQueue = useCallback(async () => {
@@ -199,7 +216,11 @@ export function ParseJobsProvider({ children, logDate, onParsed }: ParseJobsProv
         const runningJob = jobs.find((job) => job.status === 'running');
 
         if (runningJob) {
-          await pollRunningJob(runningJob);
+          if (runningJob.agentId && runningJob.runId) {
+            await pollRunningJob(runningJob);
+          } else {
+            await startJobRun(runningJob);
+          }
           await refreshDisplayJobs();
           continue;
         }

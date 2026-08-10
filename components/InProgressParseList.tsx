@@ -3,6 +3,7 @@ import { format, parseISO } from 'date-fns';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/Themed';
+import { useAiProvider } from '@/hooks/useAiProvider';
 import type { ParseJob } from '@/types/food';
 
 interface InProgressParseListProps {
@@ -28,6 +29,7 @@ function showFailedMenu(job: ParseJob, onRetry?: (id: number) => void, onDismiss
 }
 
 export function InProgressParseList({ jobs, onDismiss, onRetry }: InProgressParseListProps) {
+  const { label: providerLabel } = useAiProvider();
   const activeJobs = jobs.filter((job) => job.status === 'queued' || job.status === 'running');
   const failedJobs = jobs.filter((job) => job.status === 'failed');
 
@@ -48,7 +50,7 @@ export function InProgressParseList({ jobs, onDismiss, onRetry }: InProgressPars
                   {job.rawInput}
                 </Text>
                 <Text style={styles.jobMeta}>
-                  {job.status === 'queued' ? 'Queued' : 'Parsing with Cursor'} · {formatJobTime(job.createdAt)}
+                  {job.status === 'queued' ? 'Queued' : `Parsing with ${providerLabel}`} · {formatJobTime(job.createdAt)}
                 </Text>
               </View>
             </View>
