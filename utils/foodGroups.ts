@@ -1,4 +1,5 @@
 import type { FoodEntry } from '@/types/food';
+import { effectiveNutrition } from '@/utils/nutrition';
 
 export interface FoodLogGroup {
   id: string;
@@ -47,20 +48,23 @@ export function groupFoodEntries(entries: FoodEntry[]): FoodLogGroup[] {
 
 export function sumGroupNutrition(entries: FoodEntry[]): GroupNutritionTotals {
   return entries.reduce<GroupNutritionTotals>(
-    (totals, entry) => ({
-      calories: totals.calories + entry.calories,
-      caloriesMin: totals.caloriesMin + (entry.caloriesMin ?? entry.calories),
-      caloriesMax: totals.caloriesMax + (entry.caloriesMax ?? entry.calories),
-      protein: totals.protein + entry.protein,
-      proteinMin: totals.proteinMin + (entry.proteinMin ?? entry.protein),
-      proteinMax: totals.proteinMax + (entry.proteinMax ?? entry.protein),
-      carbs: totals.carbs + entry.carbs,
-      carbsMin: totals.carbsMin + (entry.carbsMin ?? entry.carbs),
-      carbsMax: totals.carbsMax + (entry.carbsMax ?? entry.carbs),
-      fat: totals.fat + entry.fat,
-      fatMin: totals.fatMin + (entry.fatMin ?? entry.fat),
-      fatMax: totals.fatMax + (entry.fatMax ?? entry.fat),
-    }),
+    (totals, entry) => {
+      const scaled = effectiveNutrition(entry);
+      return {
+        calories: totals.calories + scaled.calories,
+        caloriesMin: totals.caloriesMin + scaled.caloriesMin,
+        caloriesMax: totals.caloriesMax + scaled.caloriesMax,
+        protein: totals.protein + scaled.protein,
+        proteinMin: totals.proteinMin + scaled.proteinMin,
+        proteinMax: totals.proteinMax + scaled.proteinMax,
+        carbs: totals.carbs + scaled.carbs,
+        carbsMin: totals.carbsMin + scaled.carbsMin,
+        carbsMax: totals.carbsMax + scaled.carbsMax,
+        fat: totals.fat + scaled.fat,
+        fatMin: totals.fatMin + scaled.fatMin,
+        fatMax: totals.fatMax + scaled.fatMax,
+      };
+    },
     {
       calories: 0,
       caloriesMin: 0,

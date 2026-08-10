@@ -12,10 +12,12 @@ import { Text } from '@/components/Themed';
 import type { FoodEntry } from '@/types/food';
 import { groupFoodEntries, sumGroupNutrition } from '@/utils/foodGroups';
 import {
+  effectiveNutrition,
   formatCaloriesEstimate,
   formatCaloriesRange,
   formatMacroEstimate,
   formatMacroLine,
+  formatServingsLabel,
 } from '@/utils/nutrition';
 
 interface FoodEntryListProps {
@@ -38,6 +40,7 @@ interface FoodEntryListProps {
       carbsMax: number;
       fatMin: number;
       fatMax: number;
+      servings: number;
     },
   ) => Promise<void>;
 }
@@ -51,25 +54,29 @@ function formatLoggedTime(createdAt: string) {
 }
 
 function formatEntryMacroLine(entry: FoodEntry) {
-  return `P ${formatMacroEstimate(entry.protein)} · C ${formatMacroEstimate(entry.carbs)} · F ${formatMacroEstimate(entry.fat)}`;
+  const scaled = effectiveNutrition(entry);
+  return `P ${formatMacroEstimate(scaled.protein)} · C ${formatMacroEstimate(scaled.carbs)} · F ${formatMacroEstimate(scaled.fat)}`;
 }
 
 function EntryNutritionDetails({ entry }: { entry: FoodEntry }) {
-  const macroRanges = formatMacroRangeLine(entry);
+  const scaled = effectiveNutrition(entry);
+  const macroRanges = formatMacroRangeLine(scaled);
+  const servingsLabel = formatServingsLabel(entry.servings);
 
   return (
     <View style={styles.entryNutrition}>
       <NutritionEstimateWithRange
         kind="calories"
-        value={entry.calories}
-        min={entry.caloriesMin}
-        max={entry.caloriesMax}
+        value={scaled.calories}
+        min={scaled.caloriesMin}
+        max={scaled.caloriesMax}
         valueStyle={styles.itemCaloriesInline}
         rangeStyle={styles.itemRange}
         align="right"
       />
       <Text style={styles.itemMetaCompact}>
         {formatEntryMacroLine(entry)}
+        {servingsLabel ? ` · ${servingsLabel} servings` : ''}
       </Text>
       {macroRanges ? <Text style={styles.itemRangeLine}>{macroRanges}</Text> : null}
     </View>
@@ -157,7 +164,9 @@ export function FoodEntryList({ entries, onDelete, onEdit }: FoodEntryListProps)
                 </View>
                 <View style={styles.groupItems}>
                   {group.entries.map((entry, index) => {
-                    const macroRanges = formatMacroRangeLine(entry);
+                    const scaled = effectiveNutrition(entry);
+                    const macroRanges = formatMacroRangeLine(scaled);
+                    const servingsLabel = formatServingsLabel(entry.servings);
                     return (
                       <View
                         key={entry.id}
@@ -166,13 +175,16 @@ export function FoodEntryList({ entries, onDelete, onEdit }: FoodEntryListProps)
                           index < group.entries.length - 1 && styles.groupItemBorder,
                         ]}>
                         <View style={styles.groupItemContent}>
-                          <Text style={styles.itemName}>{entry.name}</Text>
+                          <Text style={styles.itemName}>
+                            {entry.name}
+                            {servingsLabel ? ` ${servingsLabel}` : ''}
+                          </Text>
                           <View style={styles.groupItemNutrition}>
                             <NutritionEstimateWithRange
                               kind="calories"
-                              value={entry.calories}
-                              min={entry.caloriesMin}
-                              max={entry.caloriesMax}
+                              value={scaled.calories}
+                              min={scaled.caloriesMin}
+                              max={scaled.caloriesMax}
                               valueStyle={styles.groupItemCalories}
                               rangeStyle={styles.itemRangeLine}
                             />
@@ -207,7 +219,12 @@ export function FoodEntryList({ entries, onDelete, onEdit }: FoodEntryListProps)
           return (
             <View key={group.id} style={styles.item}>
               <View style={styles.itemTopRow}>
-                <Text style={styles.itemName}>{entry.name}</Text>
+                <Text style={styles.itemName}>
+                  {entry.name}
+                  {formatServingsLabel(entry.servings)
+                    ? ` ${formatServingsLabel(entry.servings)}`
+                    : ''}
+                </Text>
                 <EntryMenuButton
                   entry={entry}
                   canEdit={!!onEdit}

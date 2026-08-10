@@ -23,6 +23,7 @@ export interface FoodEntry {
   rawInput: string | null;
   barcode: string | null;
   logGroupId: string | null;
+  servings: number;
   createdAt: string;
 }
 
@@ -44,6 +45,7 @@ export interface FoodEntryInput {
   source: FoodSource;
   rawInput?: string | null;
   barcode?: string | null;
+  servings?: number;
 }
 
 export interface DailySummary {

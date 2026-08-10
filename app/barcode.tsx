@@ -10,13 +10,27 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 
+import { ServingsStepper } from '@/components/ServingsStepper';
 import { useFood } from '@/context/FoodContext';
 import { lookupBarcode } from '@/services/openFoodFacts';
 import { inferMealType } from '@/utils/meal';
-import { formatFullNutrition } from '@/utils/nutrition';
+import { effectiveNutrition, formatFullNutrition, formatMacroLine } from '@/utils/nutrition';
 
-interface ScannedProductPreview {
-  label: string;
+interface PendingBarcodeProduct {
+  barcode: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  caloriesMin: number;
+  caloriesMax: number;
+  proteinMin: number;
+  proteinMax: number;
+  carbsMin: number;
+  carbsMax: number;
+  fatMin: number;
+  fatMax: number;
 }
 
 const DUPLICATE_SCAN_MS = 4000;
@@ -40,7 +54,10 @@ export default function BarcodeScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [lastScan, setLastScan] = useState<ScannedProductPreview | null>(null);
+  const [pendingProduct, setPendingProduct] = useState<PendingBarcodeProduct | null>(null);
+  const [servings, setServings] = useState(1);
+  const [logging, setLogging] = useState(false);
+  const [lastLoggedLabel, setLastLoggedLabel] = useState<string | null>(null);
 
   const mountedRef = useRef(true);
   const scanningRef = useRef(true);
@@ -75,9 +92,12 @@ export default function BarcodeScreen() {
     invalidateScanSession();
     scanningRef.current = true;
     lastScannedRef.current = null;
-    setLastScan(null);
+    setPendingProduct(null);
+    setServings(1);
+    setLastLoggedLabel(null);
     setScanning(true);
     setProcessing(false);
+    setLogging(false);
   };
 
   const handleCancel = () => {
@@ -85,12 +105,56 @@ export default function BarcodeScreen() {
     scanningRef.current = false;
     setScanning(false);
     setProcessing(false);
+    setPendingProduct(null);
     closeBarcodeScreen();
+  };
+
+  const handleLogProduct = async () => {
+    if (!pendingProduct || logging) return;
+
+    setLogging(true);
+    try {
+      await addEntry({
+        mealType: inferMealType(''),
+        name: pendingProduct.name,
+        calories: pendingProduct.calories,
+        protein: pendingProduct.protein,
+        carbs: pendingProduct.carbs,
+        fat: pendingProduct.fat,
+        caloriesMin: pendingProduct.caloriesMin,
+        caloriesMax: pendingProduct.caloriesMax,
+        proteinMin: pendingProduct.proteinMin,
+        proteinMax: pendingProduct.proteinMax,
+        carbsMin: pendingProduct.carbsMin,
+        carbsMax: pendingProduct.carbsMax,
+        fatMin: pendingProduct.fatMin,
+        fatMax: pendingProduct.fatMax,
+        source: 'barcode',
+        barcode: pendingProduct.barcode,
+        servings,
+      });
+
+      const totals = effectiveNutrition({ ...pendingProduct, servings });
+      setLastLoggedLabel(
+        `${pendingProduct.name}\n${formatMacroLine(totals)}${servings !== 1 ? `\n${servings} servings` : ''}`,
+      );
+      setPendingProduct(null);
+      setServings(1);
+      scanningRef.current = true;
+      setScanning(true);
+    } catch (error) {
+      Alert.alert(
+        'Could not save food',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+    } finally {
+      setLogging(false);
+    }
   };
 
   const handleBarcode = async ({ data }: { data: string }) => {
     const trimmed = data.trim();
-    if (!trimmed || !scanningRef.current || scanLockRef.current) {
+    if (!trimmed || !scanningRef.current || scanLockRef.current || pendingProduct) {
       return;
     }
 
@@ -119,46 +183,24 @@ export default function BarcodeScreen() {
         return;
       }
 
-      try {
-        await addEntry({
-          mealType: inferMealType(''),
-          name: product.name,
-          calories: product.calories,
-          protein: product.protein,
-          carbs: product.carbs,
-          fat: product.fat,
-          caloriesMin: product.caloriesMin,
-          caloriesMax: product.caloriesMax,
-          proteinMin: product.proteinMin,
-          proteinMax: product.proteinMax,
-          carbsMin: product.carbsMin,
-          carbsMax: product.carbsMax,
-          fatMin: product.fatMin,
-          fatMax: product.fatMax,
-          source: 'barcode',
-          barcode: trimmed,
-        });
-      } catch (error) {
-        if (session !== scanSessionRef.current || !mountedRef.current) {
-          return;
-        }
-
-        Alert.alert(
-          'Could not save food',
-          error instanceof Error ? error.message : 'Unknown error',
-          [{ text: 'Try again', onPress: resetScanner }],
-        );
-        return;
-      }
-
-      if (session !== scanSessionRef.current || !mountedRef.current) {
-        return;
-      }
-
       lastScannedRef.current = { data: trimmed, at: Date.now() };
-      setLastScan({
-        label: `${product.name}\n${formatFullNutrition(product)}`,
+      setPendingProduct({
+        barcode: trimmed,
+        name: product.name,
+        calories: product.calories,
+        protein: product.protein,
+        carbs: product.carbs,
+        fat: product.fat,
+        caloriesMin: product.caloriesMin,
+        caloriesMax: product.caloriesMax,
+        proteinMin: product.proteinMin,
+        proteinMax: product.proteinMax,
+        carbsMin: product.carbsMin,
+        carbsMax: product.carbsMax,
+        fatMin: product.fatMin,
+        fatMax: product.fatMax,
       });
+      setServings(1);
     } catch (error) {
       if (session !== scanSessionRef.current || !mountedRef.current) {
         return;
@@ -208,7 +250,11 @@ export default function BarcodeScreen() {
     );
   }
 
-  const cameraActive = scanning && !processing && !lastScan;
+  const pendingTotals = pendingProduct
+    ? effectiveNutrition({ ...pendingProduct, servings })
+    : null;
+
+  const cameraActive = scanning && !processing && !pendingProduct && !lastLoggedLabel;
 
   return (
     <View style={styles.container}>
@@ -221,10 +267,36 @@ export default function BarcodeScreen() {
         onBarcodeScanned={cameraActive ? handleBarcode : undefined}
       />
       <View style={styles.overlay}>
-        {lastScan ? (
+        {pendingProduct ? (
+          <View style={styles.successCard}>
+            <Text style={styles.successTitle}>{pendingProduct.name}</Text>
+            <Text style={styles.successBody}>
+              Per serving: {formatFullNutrition(pendingProduct)}
+            </Text>
+            <ServingsStepper value={servings} onChange={setServings} disabled={logging} />
+            {pendingTotals ? (
+              <Text style={styles.totalPreview}>Total: {formatMacroLine(pendingTotals)}</Text>
+            ) : null}
+            <View style={styles.successActions}>
+              <Pressable style={styles.secondaryAction} onPress={resetScanner} disabled={logging}>
+                <Text style={styles.secondaryActionText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.primaryAction, logging && styles.disabledAction]}
+                onPress={handleLogProduct}
+                disabled={logging}>
+                {logging ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.primaryActionText}>Log food</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        ) : lastLoggedLabel ? (
           <View style={styles.successCard}>
             <Text style={styles.successTitle}>Logged</Text>
-            <Text style={styles.successBody}>{lastScan.label}</Text>
+            <Text style={styles.successBody}>{lastLoggedLabel}</Text>
             <Text style={styles.successMeta}>Saved to {logDate}</Text>
             <View style={styles.successActions}>
               <Pressable style={styles.secondaryAction} onPress={resetScanner}>
@@ -247,7 +319,7 @@ export default function BarcodeScreen() {
             ) : null}
           </>
         )}
-        {!lastScan ? (
+        {!pendingProduct && !lastLoggedLabel ? (
           <Pressable
             style={[styles.cancelButton, processing && styles.cancelButtonProcessing]}
             onPress={handleCancel}>
@@ -307,6 +379,11 @@ const styles = StyleSheet.create({
     color: '#374151',
     lineHeight: 22,
   },
+  totalPreview: {
+    color: '#047857',
+    fontWeight: '600',
+    lineHeight: 20,
+  },
   successMeta: {
     color: '#047857',
     fontSize: 13,
@@ -323,6 +400,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
+  },
+  disabledAction: {
+    opacity: 0.7,
   },
   primaryActionText: {
     color: '#FFFFFF',

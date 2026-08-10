@@ -12,11 +12,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/Themed';
+import { ServingsStepper } from '@/components/ServingsStepper';
 import type { FoodEntry, MealType } from '@/types/food';
 import {
+  effectiveNutrition,
   formatCaloriesEstimate,
   formatCaloriesRange,
   formatFullNutrition,
+  formatMacroLine,
   midpoint,
 } from '@/utils/nutrition';
 
@@ -37,6 +40,7 @@ export interface FoodEntryEditInput {
   carbsMax: number;
   fatMin: number;
   fatMax: number;
+  servings: number;
 }
 
 interface EditFoodEntryModalProps {
@@ -116,6 +120,7 @@ export function EditFoodEntryModal({ visible, entry, onClose, onSave }: EditFood
   const [carbsMax, setCarbsMax] = useState('');
   const [fatMin, setFatMin] = useState('');
   const [fatMax, setFatMax] = useState('');
+  const [servings, setServings] = useState(1);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -130,6 +135,7 @@ export function EditFoodEntryModal({ visible, entry, onClose, onSave }: EditFood
     setCarbsMax(String(Math.round(entry.carbsMax ?? entry.carbs)));
     setFatMin(String(Math.round(entry.fatMin ?? entry.fat)));
     setFatMax(String(Math.round(entry.fatMax ?? entry.fat)));
+    setServings(entry.servings);
   }, [entry, visible]);
 
   const handleSave = async () => {
@@ -158,6 +164,7 @@ export function EditFoodEntryModal({ visible, entry, onClose, onSave }: EditFood
         carbsMax: carbs.max,
         fatMin: fat.min,
         fatMax: fat.max,
+        servings,
       });
       onClose();
     } finally {
@@ -167,13 +174,40 @@ export function EditFoodEntryModal({ visible, entry, onClose, onSave }: EditFood
 
   const currentPreview = entry
     ? [
-        formatCaloriesEstimate(entry.calories),
-        formatCaloriesRange(entry.caloriesMin, entry.caloriesMax),
-        formatFullNutrition(entry),
+        formatCaloriesEstimate(effectiveNutrition(entry).calories),
+        formatCaloriesRange(
+          effectiveNutrition(entry).caloriesMin,
+          effectiveNutrition(entry).caloriesMax,
+        ),
+        formatFullNutrition(effectiveNutrition(entry)),
       ]
         .filter(Boolean)
         .join(' · ')
     : null;
+
+  const draftTotals = effectiveNutrition({
+    servings,
+    calories: parseNumber(caloriesMin, 0),
+    protein: parseNumber(proteinMin, 0),
+    carbs: parseNumber(carbsMin, 0),
+    fat: parseNumber(fatMin, 0),
+    caloriesMin: parseNumber(caloriesMin, 0),
+    caloriesMax: parseNumber(caloriesMax, parseNumber(caloriesMin, 0)),
+    proteinMin: parseNumber(proteinMin, 0),
+    proteinMax: parseNumber(proteinMax, parseNumber(proteinMin, 0)),
+    carbsMin: parseNumber(carbsMin, 0),
+    carbsMax: parseNumber(carbsMax, parseNumber(carbsMin, 0)),
+    fatMin: parseNumber(fatMin, 0),
+    fatMax: parseNumber(fatMax, parseNumber(fatMin, 0)),
+  });
+
+  const totalPreview = [
+    formatCaloriesEstimate(draftTotals.calories),
+    formatCaloriesRange(draftTotals.caloriesMin, draftTotals.caloriesMax),
+    formatMacroLine(draftTotals),
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -192,9 +226,12 @@ export function EditFoodEntryModal({ visible, entry, onClose, onSave }: EditFood
               <Text style={styles.preview}>Current: {currentPreview}</Text>
             ) : null}
             <Text style={styles.helper}>
-              Use a min-max range when the portion is uncertain. Set both fields the same for an
-              exact value.
+              Nutrition below is per serving. Use a min-max range when the portion is uncertain.
+              Set both fields the same for an exact value.
             </Text>
+
+            <ServingsStepper value={servings} onChange={setServings} disabled={saving} />
+            <Text style={styles.totalPreview}>Total consumed: {totalPreview}</Text>
 
             <Text style={styles.label}>Name</Text>
             <TextInput
@@ -222,7 +259,7 @@ export function EditFoodEntryModal({ visible, entry, onClose, onSave }: EditFood
               })}
             </View>
 
-            <Text style={styles.label}>Nutrition ranges</Text>
+            <Text style={styles.label}>Nutrition per serving</Text>
             <BoundField
               label="Calories"
               minValue={caloriesMin}
@@ -308,6 +345,11 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 20,
     marginBottom: 4,
+  },
+  totalPreview: {
+    color: '#047857',
+    fontWeight: '600',
+    lineHeight: 20,
   },
   label: {
     fontSize: 14,

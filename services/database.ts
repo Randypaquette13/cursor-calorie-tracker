@@ -20,7 +20,7 @@ import type {
 import { createLogGroupId } from '@/utils/id';
 
 const DB_NAME = 'cursor_calorie_tracker.db';
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 const RANGE_COLUMNS = [
   ['calories_min', 'REAL'],
@@ -221,6 +221,7 @@ async function runMigrations() {
 
   await ensureColumn(db, 'activity_entries', 'strava_activities_json', 'TEXT');
   await ensureColumn(db, 'activity_parse_jobs', 'strava_activities_json', 'TEXT');
+  await ensureColumn(db, 'food_entries', 'servings', 'REAL NOT NULL DEFAULT 1');
 
   const versionRow = await db.getFirstAsync<{ version: number }>(
     `SELECT version FROM schema_version WHERE id = 1`,
@@ -289,6 +290,7 @@ function mapRow(row: Record<string, unknown>): FoodEntry {
     rawInput: (row.raw_input as string | null) ?? null,
     barcode: (row.barcode as string | null) ?? null,
     logGroupId: (row.log_group_id as string | null) ?? null,
+    servings: (row.servings as number | null) ?? 1,
     createdAt: row.created_at as string,
   };
 }
@@ -304,12 +306,13 @@ export async function insertFoodEntry(
   const createdAt = entry.createdAt ?? new Date().toISOString();
   const logGroupId = entry.logGroupId ?? createLogGroupId();
   const bounds = resolveEntryBounds(entry);
+  const servings = entry.servings ?? 1;
   const result = await db.runAsync(
     `INSERT INTO food_entries
       (date, meal_type, name, calories, protein, carbs, fat,
        calories_min, calories_max, protein_min, protein_max, carbs_min, carbs_max, fat_min, fat_max,
-       source, raw_input, barcode, log_group_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       source, raw_input, barcode, log_group_id, servings, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       entry.date,
       entry.mealType,
@@ -330,6 +333,7 @@ export async function insertFoodEntry(
       entry.rawInput ?? null,
       entry.barcode ?? null,
       logGroupId,
+      servings,
       createdAt,
     ],
   );
@@ -341,6 +345,7 @@ export async function insertFoodEntry(
     rawInput: entry.rawInput ?? null,
     barcode: entry.barcode ?? null,
     logGroupId,
+    servings,
     createdAt,
   } satisfies FoodEntry;
 }
@@ -379,18 +384,18 @@ export async function getEntriesForDate(date: string) {
 
 const SUMMARY_SELECT = `
   date,
-  COALESCE(SUM(calories), 0) AS calories,
-  COALESCE(SUM(protein), 0) AS protein,
-  COALESCE(SUM(carbs), 0) AS carbs,
-  COALESCE(SUM(fat), 0) AS fat,
-  COALESCE(SUM(COALESCE(calories_min, calories)), 0) AS calories_min,
-  COALESCE(SUM(COALESCE(calories_max, calories)), 0) AS calories_max,
-  COALESCE(SUM(COALESCE(protein_min, protein)), 0) AS protein_min,
-  COALESCE(SUM(COALESCE(protein_max, protein)), 0) AS protein_max,
-  COALESCE(SUM(COALESCE(carbs_min, carbs)), 0) AS carbs_min,
-  COALESCE(SUM(COALESCE(carbs_max, carbs)), 0) AS carbs_max,
-  COALESCE(SUM(COALESCE(fat_min, fat)), 0) AS fat_min,
-  COALESCE(SUM(COALESCE(fat_max, fat)), 0) AS fat_max,
+  COALESCE(SUM(calories * COALESCE(servings, 1)), 0) AS calories,
+  COALESCE(SUM(protein * COALESCE(servings, 1)), 0) AS protein,
+  COALESCE(SUM(carbs * COALESCE(servings, 1)), 0) AS carbs,
+  COALESCE(SUM(fat * COALESCE(servings, 1)), 0) AS fat,
+  COALESCE(SUM(COALESCE(calories_min, calories) * COALESCE(servings, 1)), 0) AS calories_min,
+  COALESCE(SUM(COALESCE(calories_max, calories) * COALESCE(servings, 1)), 0) AS calories_max,
+  COALESCE(SUM(COALESCE(protein_min, protein) * COALESCE(servings, 1)), 0) AS protein_min,
+  COALESCE(SUM(COALESCE(protein_max, protein) * COALESCE(servings, 1)), 0) AS protein_max,
+  COALESCE(SUM(COALESCE(carbs_min, carbs) * COALESCE(servings, 1)), 0) AS carbs_min,
+  COALESCE(SUM(COALESCE(carbs_max, carbs) * COALESCE(servings, 1)), 0) AS carbs_max,
+  COALESCE(SUM(COALESCE(fat_min, fat) * COALESCE(servings, 1)), 0) AS fat_min,
+  COALESCE(SUM(COALESCE(fat_max, fat) * COALESCE(servings, 1)), 0) AS fat_max,
   COUNT(*) AS entry_count
 `;
 
@@ -482,6 +487,7 @@ export async function updateFoodEntry(
     carbsMax: number;
     fatMin: number;
     fatMax: number;
+    servings: number;
   },
 ) {
   const db = await ensureDb();
@@ -489,7 +495,7 @@ export async function updateFoodEntry(
     `UPDATE food_entries
      SET meal_type = ?, name = ?, calories = ?, protein = ?, carbs = ?, fat = ?,
          calories_min = ?, calories_max = ?, protein_min = ?, protein_max = ?,
-         carbs_min = ?, carbs_max = ?, fat_min = ?, fat_max = ?
+         carbs_min = ?, carbs_max = ?, fat_min = ?, fat_max = ?, servings = ?
      WHERE id = ?`,
     [
       entry.mealType,
@@ -506,6 +512,7 @@ export async function updateFoodEntry(
       entry.carbsMax,
       entry.fatMin,
       entry.fatMax,
+      entry.servings,
       id,
     ],
   );
