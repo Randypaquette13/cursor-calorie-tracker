@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Link } from 'expo-router';
 
 import { AddFoodModal } from '@/components/AddFoodModal';
+import { CopyFoodModal } from '@/components/CopyFoodModal';
 import { ActivityBurnCard } from '@/components/ActivityBurnCard';
 import { DailySummaryCard } from '@/components/DailySummaryCard';
 import { FoodEntryList } from '@/components/FoodEntryList';
@@ -17,12 +18,23 @@ import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 import { computeMacroTargets } from '@/utils/macroTargets';
 
 export default function TodayScreen() {
-  const { today, logDate, setLogDate, todaySummary, todayActivityBurn, todayEntries, editEntry, removeEntry } =
-    useFood();
+  const {
+    today,
+    logDate,
+    setLogDate,
+    todaySummary,
+    todayActivityBurn,
+    todayEntries,
+    history,
+    editEntry,
+    removeEntry,
+    copyEntriesToDate,
+  } = useFood();
   const { profile, latestWeight } = useProfile();
   const { displayJobs, submitParse, dismissJob, retryJob } = useParseJobs();
   const { onScroll } = useTabBar();
   const [modalVisible, setModalVisible] = useState(false);
+  const [copyModalVisible, setCopyModalVisible] = useState(false);
 
   const macroTargets = useMemo(
     () =>
@@ -58,6 +70,9 @@ export default function TodayScreen() {
               <Text style={styles.secondaryActionText}>Scan barcode</Text>
             </Pressable>
           </Link>
+          <Pressable style={styles.secondaryAction} onPress={() => setCopyModalVisible(true)}>
+            <Text style={styles.secondaryActionText}>Copy from previous day</Text>
+          </Pressable>
         </View>
         <InProgressParseList jobs={displayJobs} onDismiss={dismissJob} onRetry={retryJob} />
         <Text style={styles.sectionTitle}>Food</Text>
@@ -67,6 +82,14 @@ export default function TodayScreen() {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         onSubmit={handleParse}
+      />
+      <CopyFoodModal
+        visible={copyModalVisible}
+        onClose={() => setCopyModalVisible(false)}
+        targetDate={logDate}
+        today={today}
+        history={history}
+        onCopy={copyEntriesToDate}
       />
     </>
   );

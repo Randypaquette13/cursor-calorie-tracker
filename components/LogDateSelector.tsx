@@ -4,6 +4,7 @@ import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 import { Text } from '@/components/Themed';
+import { formatLogDateLabel } from '@/utils/logDate';
 
 interface LogDateSelectorProps {
   logDate: string;
@@ -13,17 +14,6 @@ interface LogDateSelectorProps {
 
 function toDateString(date: Date) {
   return format(date, 'yyyy-MM-dd');
-}
-
-function formatLogDateLabel(logDate: string, today: string) {
-  if (logDate === today) return 'Today';
-  if (logDate === toDateString(subDays(parseISO(today), 1))) return 'Yesterday';
-
-  try {
-    return format(parseISO(logDate), 'EEEE, MMM d');
-  } catch {
-    return logDate;
-  }
 }
 
 export function LogDateSelector({ logDate, today, onChange }: LogDateSelectorProps) {

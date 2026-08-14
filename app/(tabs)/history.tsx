@@ -6,6 +6,7 @@ import { Link } from 'expo-router';
 import { ActivityBurnCard } from '@/components/ActivityBurnCard';
 import { ActivityEntryList } from '@/components/ActivityEntryList';
 import { AddFoodModal } from '@/components/AddFoodModal';
+import { CopyFoodModal } from '@/components/CopyFoodModal';
 import { DailySummaryCard } from '@/components/DailySummaryCard';
 import { FoodEntryList } from '@/components/FoodEntryList';
 import { InProgressParseList } from '@/components/InProgressParseList';
@@ -32,6 +33,7 @@ export default function HistoryScreen() {
     setLogDate,
     removeEntry,
     editEntry,
+    copyEntriesToDate,
   } = useFood();
   const { burnSummary: historyActivityBurn, entries: historyActivityEntries, removeActivityEntry } =
     useActivity();
@@ -39,6 +41,10 @@ export default function HistoryScreen() {
   const { displayJobs, submitParse, dismissJob, retryJob } = useParseJobs();
   const { onScroll } = useTabBar();
   const [modalVisible, setModalVisible] = useState(false);
+  const [copyModalVisible, setCopyModalVisible] = useState(false);
+
+  const canCopyFromSelectedDay =
+    historySelectedDate !== today && historyEntries.length > 0;
 
   const macroTargets = useMemo(
     () =>
@@ -129,6 +135,11 @@ export default function HistoryScreen() {
               <Text style={styles.secondaryActionText}>Scan barcode</Text>
             </Pressable>
           </Link>
+          {canCopyFromSelectedDay ? (
+            <Pressable style={styles.secondaryAction} onPress={() => setCopyModalVisible(true)}>
+              <Text style={styles.secondaryActionText}>Copy to today</Text>
+            </Pressable>
+          ) : null}
         </View>
         <InProgressParseList jobs={displayJobs} onDismiss={dismissJob} onRetry={retryJob} />
         <DailySummaryCard summary={historySummary} title="Day summary" targets={macroTargets} />
@@ -142,6 +153,15 @@ export default function HistoryScreen() {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         onSubmit={handleParse}
+      />
+      <CopyFoodModal
+        visible={copyModalVisible}
+        onClose={() => setCopyModalVisible(false)}
+        targetDate={today}
+        today={today}
+        history={history}
+        initialSourceDate={historySelectedDate}
+        onCopy={copyEntriesToDate}
       />
     </>
   );
