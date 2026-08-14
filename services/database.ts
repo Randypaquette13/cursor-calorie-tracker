@@ -382,6 +382,59 @@ export async function getEntriesForDate(date: string) {
   return rows.map(mapRow);
 }
 
+export async function copyFoodEntriesToDate(entryIds: number[], targetDate: string) {
+  if (entryIds.length === 0) return [];
+
+  const db = await ensureDb();
+  const placeholders = entryIds.map(() => '?').join(', ');
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM food_entries WHERE id IN (${placeholders})`,
+    entryIds,
+  );
+  const byId = new Map(rows.map((row) => [row.id as number, mapRow(row)]));
+  const entries = entryIds
+    .map((id) => byId.get(id))
+    .filter((entry): entry is FoodEntry => entry != null);
+
+  const groupMap = new Map<string, string>();
+  const results: FoodEntry[] = [];
+
+  for (const entry of entries) {
+    let logGroupId: string | null = null;
+    if (entry.logGroupId) {
+      if (!groupMap.has(entry.logGroupId)) {
+        groupMap.set(entry.logGroupId, createLogGroupId());
+      }
+      logGroupId = groupMap.get(entry.logGroupId)!;
+    }
+
+    const copied = await insertFoodEntry({
+      date: targetDate,
+      mealType: entry.mealType,
+      name: entry.name,
+      calories: entry.calories,
+      protein: entry.protein,
+      carbs: entry.carbs,
+      fat: entry.fat,
+      caloriesMin: entry.caloriesMin,
+      caloriesMax: entry.caloriesMax,
+      proteinMin: entry.proteinMin,
+      proteinMax: entry.proteinMax,
+      carbsMin: entry.carbsMin,
+      carbsMax: entry.carbsMax,
+      fatMin: entry.fatMin,
+      fatMax: entry.fatMax,
+      source: entry.source,
+      barcode: entry.barcode,
+      servings: entry.servings,
+      logGroupId,
+    });
+    results.push(copied);
+  }
+
+  return results;
+}
+
 const SUMMARY_SELECT = `
   date,
   COALESCE(SUM(calories * COALESCE(servings, 1)), 0) AS calories,

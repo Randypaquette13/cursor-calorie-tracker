@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import {
+  copyFoodEntriesToDate,
   deleteFoodEntry,
   getActivityBurnSummaryForDate,
   getDailySummary,
@@ -52,6 +53,7 @@ interface FoodContextValue {
     },
   ) => Promise<void>;
   removeEntry: (id: number) => Promise<void>;
+  copyEntriesToDate: (entryIds: number[], targetDate: string) => Promise<void>;
 }
 
 const FoodContext = createContext<FoodContextValue | null>(null);
@@ -207,6 +209,15 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
     [refresh],
   );
 
+  const copyEntriesToDate = useCallback(
+    async (entryIds: number[], targetDate: string) => {
+      if (entryIds.length === 0) return;
+      await copyFoodEntriesToDate(entryIds, targetDate);
+      await refresh();
+    },
+    [refresh],
+  );
+
   const value = useMemo(
     () => ({
       ready,
@@ -226,6 +237,7 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
       addEntries,
       editEntry,
       removeEntry,
+      copyEntriesToDate,
     }),
     [
       ready,
@@ -243,6 +255,7 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
       addEntries,
       editEntry,
       removeEntry,
+      copyEntriesToDate,
     ],
   );
 
