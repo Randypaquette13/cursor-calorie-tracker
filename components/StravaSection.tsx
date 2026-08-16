@@ -83,14 +83,8 @@ export function StravaConnectCard({ compact = false }: StravaConnectCardProps) {
               <Text style={styles.hint}>
                 Callback domain: <Text style={styles.inlineMono}>{stravaSetup.callbackDomain}</Text>
               </Text>
-              {stravaSetup.mode === 'railway' ? (
-                <CopyableText value={stravaSetup.redirectUri} />
-              ) : (
-                <Text style={styles.hint}>
-                  This build uses localhost OAuth, which often fails in standalone apps. Rebuild via
-                  EAS or use Expo Go with your Railway dev server for reliable Strava connect.
-                </Text>
-              )}
+              <Text style={styles.hint}>{stravaSetup.redirectHint}</Text>
+              <CopyableText value={stravaSetup.redirectUri} />
             </>
           ) : null}
           <Pressable style={styles.primaryButton} onPress={handleConnect} disabled={loading}>

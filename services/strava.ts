@@ -30,6 +30,25 @@ export function getStravaReturnUrl() {
   return Linking.createURL('strava');
 }
 
+export function usesStravaRailwayCallback() {
+  return getStravaRedirectUri().startsWith('https://');
+}
+
+function parseAuthorizationCode(resultUrl: string) {
+  const parsed = new URL(resultUrl);
+  const error = parsed.searchParams.get('error');
+  if (error) {
+    throw new Error(`Strava authorization failed: ${error}`);
+  }
+
+  const code = parsed.searchParams.get('code');
+  if (!code) {
+    throw new Error('Strava did not return an authorization code.');
+  }
+
+  return code;
+}
+
 const CLIENT_ID_KEY = 'strava_client_id';
 const CLIENT_SECRET_KEY = 'strava_client_secret';
 const ACCESS_TOKEN_KEY = 'strava_access_token';
@@ -152,25 +171,30 @@ export async function connectStrava() {
   }
 
   const redirectUri = getStravaRedirectUri();
-  const returnUrl = getStravaReturnUrl();
-  const authUrl =
+  const appReturnUrl = getStravaReturnUrl();
+  const usesRailway = usesStravaRailwayCallback();
+
+  // Localhost: Strava redirects to http://localhost and the auth session must listen for that URL.
+  // Railway: Strava hits the server, which forwards the code back via the app deep link.
+  const authSessionReturnUrl = usesRailway ? appReturnUrl : redirectUri;
+
+  let authUrl =
     `${STRAVA_AUTH_URL}?client_id=${encodeURIComponent(clientId)}` +
     `&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}` +
-    `&approval_prompt=auto&scope=${encodeURIComponent(STRAVA_SCOPES.join(','))}` +
-    `&state=${encodeURIComponent(returnUrl)}`;
+    `&approval_prompt=auto&scope=${encodeURIComponent(STRAVA_SCOPES.join(','))}`;
 
-  const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl, {
+  if (usesRailway) {
+    authUrl += `&state=${encodeURIComponent(appReturnUrl)}`;
+  }
+
+  const result = await WebBrowser.openAuthSessionAsync(authUrl, authSessionReturnUrl, {
     preferEphemeralSession: true,
   });
   if (result.type !== 'success' || !result.url) {
     throw new Error('Strava authorization was cancelled.');
   }
 
-  const parsed = new URL(result.url);
-  const code = parsed.searchParams.get('code');
-  if (!code) {
-    throw new Error('Strava did not return an authorization code.');
-  }
+  const code = parseAuthorizationCode(result.url);
 
   await exchangeToken({
     client_id: clientId,
