@@ -12,6 +12,7 @@ import {
   formatStravaDistance,
   formatStravaDuration,
 } from '@/utils/strava';
+import { getStravaSetupCopy } from '@/utils/stravaSetup';
 
 interface StravaConnectCardProps {
   compact?: boolean;
@@ -19,6 +20,7 @@ interface StravaConnectCardProps {
 
 export function StravaConnectCard({ compact = false }: StravaConnectCardProps) {
   const { connection, redirectUri, callbackDomain, connect, disconnect } = useStrava();
+  const stravaSetup = getStravaSetupCopy(callbackDomain, redirectUri);
   const [loading, setLoading] = useState(false);
 
   const handleConnect = async () => {
@@ -77,10 +79,18 @@ export function StravaConnectCard({ compact = false }: StravaConnectCardProps) {
           </Text>
           {!compact ? (
             <>
+              <Text style={styles.hint}>{stravaSetup.callbackDomainHint}</Text>
               <Text style={styles.hint}>
-                Set Strava Authorization Callback Domain to {callbackDomain}, then use:
+                Callback domain: <Text style={styles.inlineMono}>{stravaSetup.callbackDomain}</Text>
               </Text>
-              <CopyableText value={redirectUri} />
+              {stravaSetup.mode === 'railway' ? (
+                <CopyableText value={stravaSetup.redirectUri} />
+              ) : (
+                <Text style={styles.hint}>
+                  This build uses localhost OAuth, which often fails in standalone apps. Rebuild via
+                  EAS or use Expo Go with your Railway dev server for reliable Strava connect.
+                </Text>
+              )}
             </>
           ) : null}
           <Pressable style={styles.primaryButton} onPress={handleConnect} disabled={loading}>
@@ -184,6 +194,11 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 12,
     lineHeight: 18,
+  },
+  inlineMono: {
+    color: '#374151',
+    fontFamily: 'SpaceMono',
+    fontSize: 12,
   },
   primaryButton: {
     backgroundColor: '#FC4C02',

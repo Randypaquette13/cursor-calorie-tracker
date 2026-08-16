@@ -30,6 +30,7 @@ import {
   saveStravaCredentials,
 } from '@/services/strava';
 import { AI_PROVIDERS, AI_PROVIDER_LABELS, type AiProvider } from '@/types/aiProvider';
+import { getStravaSetupCopy } from '@/utils/stravaSetup';
 
 export default function SettingsScreen() {
   const [provider, setProvider] = useState<AiProvider>('cursor');
@@ -42,6 +43,7 @@ export default function SettingsScreen() {
   const [stravaSaved, setStravaSaved] = useState(false);
   const redirectUri = getStravaRedirectUri();
   const stravaCallbackDomain = getStravaCallbackDomain();
+  const stravaSetup = getStravaSetupCopy(stravaCallbackDomain, redirectUri);
   const buildVersion =
     (Constants.expoConfig?.extra as { buildVersion?: string } | undefined)?.buildVersion ??
     'unknown';
@@ -128,7 +130,9 @@ export default function SettingsScreen() {
     setStravaSaved(true);
     Alert.alert(
       'Saved',
-      `Add this callback URL to your Strava app settings:\n\n${redirectUri}`,
+      stravaSetup.mode === 'railway'
+        ? `In Strava, set Authorization Callback Domain to:\n\n${stravaSetup.callbackDomain}\n\n(no https:// or path)`
+        : `In Strava, set Authorization Callback Domain to:\n\nlocalhost\n\n(not http://localhost)`,
     );
   };
 
@@ -227,11 +231,14 @@ export default function SettingsScreen() {
         <Text style={styles.cardTitle}>Strava API credentials</Text>
         <Text style={styles.cardBody}>
           Create an app at strava.com/settings/api, then paste your Client ID and Client Secret
-          below. Set Authorization Callback Domain to{' '}
-          <Text style={styles.inlineMono}>{stravaCallbackDomain}</Text>, then paste this
-          Authorization Redirect URL:
+          below.
         </Text>
-        <CopyableText value={redirectUri} />
+        <Text style={styles.cardBody}>{stravaSetup.callbackDomainHint}</Text>
+        <Text style={styles.label}>Authorization Callback Domain</Text>
+        <CopyableText value={stravaSetup.callbackDomain} />
+        <Text style={styles.cardBody}>{stravaSetup.redirectHint}</Text>
+        <Text style={styles.label}>OAuth redirect URL (used by this app)</Text>
+        <CopyableText value={stravaSetup.redirectUri} />
         <TextInput
           style={styles.input}
           value={stravaClientId}
@@ -324,6 +331,11 @@ const styles = StyleSheet.create({
   cardBody: {
     color: '#6B7280',
     lineHeight: 21,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
   },
   providerRow: {
     flexDirection: 'row',

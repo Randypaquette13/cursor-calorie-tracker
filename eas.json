@@ -7,15 +7,24 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "STRAVA_CALLBACK_DOMAIN": "cursor-calorie-tracker-production.up.railway.app"
+      },
       "ios": {
         "simulator": false
       }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "STRAVA_CALLBACK_DOMAIN": "cursor-calorie-tracker-production.up.railway.app"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "STRAVA_CALLBACK_DOMAIN": "cursor-calorie-tracker-production.up.railway.app"
+      }
     }
   },
   "submit": {
