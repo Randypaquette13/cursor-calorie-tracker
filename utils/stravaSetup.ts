@@ -13,9 +13,9 @@ export function getStravaSetupCopy(callbackDomain: string, redirectUri: string) 
       callbackDomain,
       redirectUri,
       callbackDomainHint:
-        'In Strava, set Authorization Callback Domain to the domain below — no https:// and no path.',
+        'Expo Go via Railway uses a remote callback. In Strava, set Authorization Callback Domain to the domain below — no https:// and no path.',
       redirectHint:
-        'The app sends this redirect URL during OAuth. Strava checks that it matches your callback domain. Your Railway server forwards the result back to the app.',
+        'This redirect URL is only for the Railway dev server. App Store builds use localhost instead.',
     };
   }
 
@@ -26,6 +26,6 @@ export function getStravaSetupCopy(callbackDomain: string, redirectUri: string) 
     callbackDomainHint:
       'In Strava, set Authorization Callback Domain to localhost — the word only, not http://localhost.',
     redirectHint:
-      'Localhost only works for some dev builds. For the App Store app or Expo Go via Railway, rebuild with your Railway domain configured (see Settings).',
+      'App Store and standalone builds use Strava mobile OAuth with redirect http://localhost. No web domain is required.',
   };
 }

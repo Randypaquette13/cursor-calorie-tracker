@@ -4,27 +4,12 @@ const base = require('./app.json');
 const isEasBuild = process.env.EAS_BUILD === 'true';
 const isDevClientBuild = process.env.EAS_BUILD_PROFILE === 'development';
 
-/** Stable Railway hostname used for Strava OAuth in standalone / App Store builds. */
-const DEFAULT_PRODUCTION_STRAVA_DOMAIN = 'cursor-calorie-tracker-production.up.railway.app';
-
-/**
- * Resolve the Strava callback domain:
- * 1. RAILWAY_PUBLIC_DOMAIN — Metro running on Railway (Expo Go dev server)
- * 2. STRAVA_CALLBACK_DOMAIN — explicit override (e.g. EAS build env)
- * 3. DEFAULT_PRODUCTION_STRAVA_DOMAIN — standalone EAS builds (dev client + App Store)
- * 4. null — local `expo start` without env → localhost fallback
- */
-const stravaCallbackDomain =
-  process.env.RAILWAY_PUBLIC_DOMAIN ??
-  process.env.STRAVA_CALLBACK_DOMAIN ??
-  (isEasBuild ? DEFAULT_PRODUCTION_STRAVA_DOMAIN : null);
-
-const stravaOAuthRedirectUri =
-  stravaCallbackDomain && stravaCallbackDomain !== 'localhost'
-    ? `https://${stravaCallbackDomain}/strava/oauth/callback`
-    : 'http://localhost';
-
-const stravaCallbackDomainDisplay = stravaCallbackDomain ?? 'localhost';
+/** Only use a remote callback when Metro runs on Railway (Expo Go dev server). */
+const railwayPublicDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
+const stravaOAuthRedirectUri = railwayPublicDomain
+  ? `https://${railwayPublicDomain}/strava/oauth/callback`
+  : 'http://localhost';
+const stravaCallbackDomain = railwayPublicDomain ?? 'localhost';
 
 const speechPlugin = [
   'expo-speech-recognition',
@@ -48,9 +33,9 @@ module.exports = {
     plugins: [...base.expo.plugins, ...easPlugins],
     extra: {
       ...base.expo.extra,
-      buildVersion: '2026-08-16-strava-oauth',
+      buildVersion: '2026-08-16-strava-localhost',
       stravaOAuthRedirectUri,
-      stravaCallbackDomain: stravaCallbackDomainDisplay,
+      stravaCallbackDomain,
     },
   },
 };
